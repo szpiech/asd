@@ -1,0 +1,5 @@
+# no .a or .o files
+*.[ao]
+# but do track lib.a
+!lib.a
+*~

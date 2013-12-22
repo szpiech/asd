@@ -1,0 +1,110 @@
+usage
+./asd -f <filename> -c <number of loci> -r <number of chromosomes> --ndc <number of non-data cols> --ndr <number of non-data rows> -s <column where individual names are>
+
+optional flags --full, --full-log, --ibs-all, -o, --check-file, --check-deep
+
+Alleles must be coded 0/1 with missing data as -9.  If you encounter segfaults, run with --check-file or --check-deep to make sure there is not a problem with the datafile.  Other segfaults should be reported to szpiechz@umich.edu
+
+Command line arguments:
+
+-f <string> : the name of your input file
+-c <int>    : the number of loci in your datafile
+-r <int>    : the number of chromosomes in you datafile
+            : (2N, where N is # of individuals)
+--ndc <int> : the number of nondata columns before the data
+--ndr <int> : the number of nondata rows before the data (including loci names)
+-s <int>    : the nondata column where individual names are
+--threads <int>: number of threads to spawn (each thread will take an equal 
+	       : portion of the workload to do), note that each core/processor
+	       : can only process one thread at a time, with the exception
+	       : of the new workstations, which can process two simultaneously
+	       : per core
+--full      : prints the allele sharing matrix to stdout if set
+	    : if you do not set --full you will get two r/2 x r/2 matrices
+	    : the first is the number of loci used for each pairwise comparison
+	    : the second is the untransformed IBS matrix
+	    : in order to recover the allele sharing distance matrix
+	    : divide this number by the number of loci in the appropriate
+	    : cell, and then transform by 1-(ps)
+--full-log  : same as --full but calculates -ln(ps)
+--ibs-all   : produces three matricies for IBS 0/1/2 counts
+	      can be run with or without --full/--full-log
+-o <string> : outputs four files
+		      <string>.dist is the allele sharing distance matrix
+		      <string>.ibs0 is the IBS 0 pairwise matrix
+		      <string>.ibs1 is the IBS 1 pairwise matrix
+		      <string>.ibs2 is the IBS 2 pairwise matrix
+--check-file: a quick check for data format integrity (no calculations)
+--check-deep: a more detailed check for data format integrity (no calculations)
+
+
+A toy example with no missing data:
+
+./asd -f test_data_1 -r 12 -c 5 --ndc 1 --ndr 1 -s 1 --full-log
+
+output:
+
+ind0 ind1 ind2 ind3 ind4 ind5 
+ind0 0 0.693147 0.356675 0.223144 0.356675 0.693147 
+ind1 0.693147 0 0.223144 0.356675 0.510826 1.60944 
+ind2 0.356675 0.223144 0 0.105361 0.223144 0.916291 
+ind3 0.223144 0.356675 0.105361 0 0.356675 0.693147 
+ind4 0.356675 0.510826 0.223144 0.356675 0 0.916291 
+ind5 0.693147 1.60944 0.916291 0.693147 0.916291 0 
+
+
+./asd -f test_data_1 -r 12 -c 5 --ndc 1 --ndr 1 -s 1
+
+output:
+
+5 5 5 5 5 5 
+5 5 5 5 5 5 
+5 5 5 5 5 5 
+5 5 5 5 5 5 
+5 5 5 5 5 5 
+5 5 5 5 5 5 
+
+ind0 ind1 ind2 ind3 ind4 ind5 
+ind0 5 2.5 3.5 4 3.5 2.5 
+ind1 2.5 5 4 3.5 3 1 
+ind2 3.5 4 5 4.5 4 2 
+ind3 4 3.5 4.5 5 3.5 2.5 
+ind4 3.5 3 4 3.5 5 2 
+ind5 2.5 1 2 2.5 2 5 
+
+
+A toy example with missing data:
+
+./asd -f test_data_2 -r 12 -c 5 --ndc 1 --ndr 1 -s 1 --full-log
+
+output:
+
+ind0 ind1 ind2 ind3 ind4 ind5 
+ind0 0 0.693147 0.287682 0.133531 0.405465 0.182322 
+ind1 0.693147 0 0.133531 0.287682 0.405465 1.09861 
+ind2 0.287682 0.133531 0 0.105361 0.133531 0.693147 
+ind3 0.133531 0.287682 0.105361 0 0.287682 0.470004 
+ind4 0.405465 0.405465 0.133531 0.287682 0 0.980829 
+ind5 0.182322 1.09861 0.693147 0.470004 0.980829 0 
+
+
+
+./asd -f test_data_2 -r 12 -c 5 --ndc 1 --ndr 1 -s 1
+
+
+output:
+
+5 3 4 4 3 3 
+3 5 4 4 3 3 
+4 4 5 5 4 4 
+4 4 5 5 4 4 
+3 3 4 4 5 4 
+3 3 4 4 4 5 
+
+ind0 ind1 ind2 ind3 ind4 ind5 
+ind0 5 1.5 3 3.5 2 2.5 
+ind1 1.5 5 3.5 3 2 1 
+ind2 3 3.5 5 4.5 3.5 2 
+ind3 3.5 3 4.5 5 3 2.5 
+ind4 2 2 3.5 3 5 1.5 
+ind5 2.5 1 2 2.5 1.5 5 
