@@ -1,18 +1,20 @@
 usage
 ./asd --stru <filename> --nloci <number of loci> --nchr <number of chromosomes> --ndc <number of non-data cols> --ndr <number of non-data rows> --id-col <column where individual names are>
 
-optional flags --full, --full-log, --ibs-all, --out, --check-file, --check-deep
+optional flags --full, --full-log, --ibs-all, --out, --check-file, --check-deep, --tped, --tfam, --stru-mis, --tped-mis
 
-Alleles must be coded 0/1 with missing data as -9.  If you encounter segfaults, run with --check-file or --check-deep to make sure there is not a problem with the datafile.  Other segfaults should be reported to szpiechz@umich.edu
+For STRU files, alleles are assumed to be coded 0/1 with missing data as -9 (change with --stru-mis).  TPED/TFAM files are assumed to be biallelic but can be coded with arbitrary alleles.  Missing data as coded 0 (change with --tped-mis).  If you encounter segfaults, run with --check-file or --check-deep to make sure there is not a problem with the datafile (only works with STRU).  Other segfaults should be reported to <szpiech@gmail.com>.
 
 Command line arguments:
 
 --stru <string> : The input data filename (stru format), data 
        		: must be biallelic and coded 0/1 (-9 for missing data).
+--stru-mis <int> : For stru files, set the missing data value (must be an integer, default is -9).
 --tped <string> : The input data filename (tped format), also 
        		: requires a .tfam file (--tfam).  Data must be biallelic, 
 		: but alleles can be arbitrarily coded.  Missing data must be -9.
 --tfam <string> : The input data filename (tfam format), also requires a .tped file (--tped).
+--tped-mis <string> : For stru files, set the missing data value (default is 0).
 --nloci <int>    : the number of loci in your datafile
 --nchr <int>    : the number of chromosomes in your datafile
             : (2N, where N is # of individuals)

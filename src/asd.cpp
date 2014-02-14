@@ -46,11 +46,11 @@ const string HELP_IBS_OUT = "Basename for output files.";
 
 const string ARG_FILENAME = "--stru";
 const string DEFAULT_FILENAME = "__none";
-const string HELP_FILENAME = "The input data filename (stru format), data must be biallelic and coded 0/1 (-9 for missing data).";
+const string HELP_FILENAME = "The input data filename (stru format), data must be biallelic and coded 0/1 (-9 for missing data or change with --stru-mis).";
 
 const string ARG_TPED_FILENAME = "--tped";
 const string DEFAULT_TPED_FILENAME = "__none";
-const string HELP_TPED_FILENAME = "The input data filename (tped format), also requires a .tfam file (--tfam).  Data must be biallelic, but alleles can be arbitrarily coded.  Missing data must be -9.";
+const string HELP_TPED_FILENAME = "The input data filename (tped format), also requires a .tfam file (--tfam).  Data must be biallelic, but alleles can be arbitrarily coded.  Missing data is coded 0 (or change with --tped-mis).";
 
 const string ARG_TFAM_FILENAME = "--tfam";
 const string DEFAULT_TFAM_FILENAME = "__none";
@@ -88,7 +88,13 @@ const string ARG_FULL_LOG = "--full-log";
 const bool DEFAULT_FULL_LOG = false;
 const string HELP_FULL_LOG = "Same as --full but transforms by -ln(ps).";
 
-//const string ARG_MISSING = "-m";
+const string ARG_STRU_MISSING = "--stru-mis";
+const int DEFAULT_STRU_MISSING = -9;
+const string HELP_STRU_MISSING = "For stru files, set the missing data value (must be an integer, default is -9).";
+
+const string ARG_TPED_MISSING = "--tped-mis";
+const string DEFAULT_TPED_MISSING = "0";
+const string HELP_TPED_MISSING = "For stru files, set the missing data value (default is 0).";
 
 const char DEL = ' ';
 const string EMPTY_STRING = " ";
@@ -135,9 +141,9 @@ bool parse_cmd_line(int argc, char* argv[],
 void printHelp(map<string,int> &argi, map<string,string> &args,
 	       map<string,bool> &argb);
 void readData_ind_asd(ifstream &fin,structure_data &data,
-	      int sort, int ndcols, int ndrows, int nrows, int ncols);
+		      int sort, int ndcols, int ndrows, int nrows, int ncols, int STRU_MISSING);
 void readData_ind_asd_tped_tfam(ifstream &pedin, ifstream &famin, structure_data &data,
-				int nind, int nloci);
+				int nind, int nloci, string TPED_MISSING);
 
 short int* split_int(ifstream &fin, int fields);
 string* split_str_str(int &size, const char *s, char c);
@@ -183,6 +189,8 @@ int main(int argc, char* argv[])
   params.addFlag(ARG_NDROWS,DEFAULT_NDROWS,"",HELP_NDROWS);
   params.addFlag(ARG_FULL,DEFAULT_FULL,"",HELP_FULL);
   params.addFlag(ARG_FULL_LOG,DEFAULT_FULL_LOG,"",HELP_FULL_LOG);
+  params.addFlag(ARG_STRU_MISSING,DEFAULT_STRU_MISSING,"",HELP_STRU_MISSING);
+  params.addFlag(ARG_TPED_MISSING,DEFAULT_TPED_MISSING,"",HELP_TPED_MISSING);
 
   try
     {
@@ -210,6 +218,8 @@ int main(int argc, char* argv[])
   bool CALC_ALL_IBS = params.getBoolFlag(ARG_CALC_IBS);
   bool CHECK_FILE = params.getBoolFlag(ARG_CHECK_FILE);
   bool CHECK_FILE_DEEP = params.getBoolFlag(ARG_CHECK_FILE_DEEP);
+  int STRU_MISSING = params.getIntFlag(ARG_STRU_MISSING);
+  string TPED_MISSING = params.getStringFlag(ARG_TPED_MISSING);
 
 
   if(nrows <= 0)
@@ -227,9 +237,9 @@ int main(int argc, char* argv[])
       cerr << "Column to sort by must be > 0.\n";
       quit = true;
     }
-  if(ndcols <= 0)
+  if(ndcols < 0)
     {
-      cerr << "Non-data columns must be > 0.\n";
+      cerr << "Non-data columns must be >= 0.\n";
       quit = true;
     }
   if(ndrows <= 0)
@@ -353,7 +363,7 @@ int main(int argc, char* argv[])
 	  cerr << "Could not open " << filename << " for reading.'n";
 	  return -1;
 	}
-      readData_ind_asd(fin,data,sort,ndcols,ndrows,nrows,ncols);
+      readData_ind_asd(fin,data,sort,ndcols,ndrows,nrows,ncols,STRU_MISSING);
     }
   else
     {
@@ -370,7 +380,7 @@ int main(int argc, char* argv[])
 	  cerr << "Could not open " << tfam_filename << " for reading.'n";
 	  return -1;
 	}      
-      readData_ind_asd_tped_tfam(fin,fin2,data,nind,ncols);
+      readData_ind_asd_tped_tfam(fin,fin2,data,nind,ncols,TPED_MISSING);
     }
   
 
@@ -1068,7 +1078,7 @@ double proportion_shared(short A, short B)
 
 void readData_ind_asd(ifstream &fin,structure_data &data,
 	      int sort, int ndcols, int ndrows, 
-	      int nrows, int ncols)
+		      int nrows, int ncols, int STRU_MISSING)
 {
   string line;
   int nind = nrows/2;
@@ -1080,18 +1090,17 @@ void readData_ind_asd(ifstream &fin,structure_data &data,
     {
       data.ind_names[i] = EMPTY_STRING;
     }
-
-  getline(fin,line);
   int size;
-  data.locus_names = split_str_str(size,line.c_str(),DEL);
+  
+  for(int i = 0; i < ndrows;i++)
+    {
+      getline(fin,line);
+      //this would load loci names, but we don't actualy use them, so why bother.
+      //if(i==0) data.locus_names = split_str_str(size,line.c_str(),DEL);
+    }
 
   size = ncols;
   data.nloci = size;
-
-  for(int i = 1; i < ndrows;i++)
-    {
-      getline(fin,line);
-    }
 
   string key;
   string field;
@@ -1122,7 +1131,7 @@ void readData_ind_asd(ifstream &fin,structure_data &data,
 	    {
 	      tmp_dbl = data.data[index][i];
 	      //(*data.data)[key][1][i] = tmp[i];
-	      if(tmp_dbl >= 0 && tmp[i] >= 0)
+	      if(tmp_dbl != STRU_MISSING && tmp[i] != STRU_MISSING)
 		{
 		  data.data[index][i] += tmp[i];
 		}
@@ -1144,7 +1153,8 @@ void readData_ind_asd(ifstream &fin,structure_data &data,
 	  */	  
 	  for(int i = 0; i < size; i++)
 	    {
-	      data.data[index][i] = tmp[i];
+	      if(tmp[i] != STRU_MISSING) data.data[index][i] = tmp[i];
+	      else data.data[index][i] = -9;
 	    }
 	  //data.data[index] = block;
 	}
@@ -1155,7 +1165,7 @@ void readData_ind_asd(ifstream &fin,structure_data &data,
 }
 
 void readData_ind_asd_tped_tfam(ifstream &pedin, ifstream &famin, structure_data &data,
-				int nind, int nloci)
+				int nind, int nloci, string TPED_MISSING)
 {
   string line;
   string junk;
@@ -1174,16 +1184,17 @@ void readData_ind_asd_tped_tfam(ifstream &pedin, ifstream &famin, structure_data
     }
   
   data.nloci = nloci;
-  data.locus_names = new string[nloci];
+  //data.locus_names = new string[nloci];
   
   string *zeroAllele = new string[nloci];
-  for (int i = 0; i < nloci; i++) zeroAllele[i] = "-9";
+  for (int i = 0; i < nloci; i++) zeroAllele[i] = TPED_MISSING;
   string allele1, allele2;
   short alleleCount = 0;
   for (int locus = 0; locus < nloci; locus++)
     {
       pedin >> junk;
-      pedin >> data.locus_names[locus];
+      //pedin >> data.locus_names[locus];
+      pedin >> junk;
       pedin >> junk;
       pedin >> junk;
 
@@ -1191,11 +1202,11 @@ void readData_ind_asd_tped_tfam(ifstream &pedin, ifstream &famin, structure_data
 	{
 	  pedin >> allele1;
 	  pedin >> allele2;
-	  if(allele1.compare("-9") == 0 || allele2.compare("-9") == 0)
+	  if(allele1.compare(TPED_MISSING) == 0 || allele2.compare(TPED_MISSING) == 0)
 	    {
 	      data.data[ind][locus] = -9;
 	    }
-	  else if(zeroAllele[locus].compare("-9") == 0)
+	  else if(zeroAllele[locus].compare(TPED_MISSING) == 0)
 	    {
 	      alleleCount = 0;
 	      zeroAllele[locus] = allele1;
