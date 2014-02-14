@@ -30,43 +30,51 @@ using namespace std;
 
 const string ARG_CHECK_FILE = "--check-file";
 const bool DEFAULT_CHECK_FILE = false;
-const string HELP_CHECK_FILE = "Perform a quick check for file format integrity.  May miss some problems. (no calculations)";
+const string HELP_CHECK_FILE = "Perform a quick check for file format integrity.  May miss some problems. (no calculations, no support for tped/tfam)";
 
 const string ARG_CHECK_FILE_DEEP = "--check-deep";
 const bool DEFAULT_CHECK_FILE_DEEP = false;
-const string HELP_CHECK_FILE_DEEP = "Perform a longer check for file format integrity.  Includes all checks from --check-file. (no calculations)";
+const string HELP_CHECK_FILE_DEEP = "Perform a longer check for file format integrity.  Includes all checks from --check-file. (no calculations, no support for tped/tfam)";
 
 const string ARG_CALC_IBS = "--ibs-all";
 const bool DEFAULT_CALC_IBS = false;
 const string HELP_CALC_IBS = "Set to output all IBS sharing matrices.";
 
-const string ARG_IBS_OUT = "-o";
+const string ARG_IBS_OUT = "--out";
 const string DEFAULT_IBS_OUT = "outfile";
 const string HELP_IBS_OUT = "Basename for output files.";
 
-const string ARG_FILENAME = "-f";
-const string DEFAULT_FILENAME = "infile";
-const string HELP_FILENAME = "The input filename.";
+const string ARG_FILENAME = "--stru";
+const string DEFAULT_FILENAME = "__none";
+const string HELP_FILENAME = "The input data filename (stru format), data must be biallelic and coded 0/1 (-9 for missing data).";
 
-const string ARG_NROWS = "-r";
+const string ARG_TPED_FILENAME = "--tped";
+const string DEFAULT_TPED_FILENAME = "__none";
+const string HELP_TPED_FILENAME = "The input data filename (tped format), also requires a .tfam file (--tfam).  Data must be biallelic, but alleles can be arbitrarily coded.  Missing data must be -9.";
+
+const string ARG_TFAM_FILENAME = "--tfam";
+const string DEFAULT_TFAM_FILENAME = "__none";
+const string HELP_TFAM_FILENAME = "The input data filename (tfam format), also requires a .tped file (--tped).";
+
+const string ARG_NROWS = "--nchr";
 const int DEFAULT_NROWS = 0;
 const string HELP_NROWS = "Number of sampled chromosomes.";
 
-const string ARG_NCOLS = "-c";
+const string ARG_NCOLS = "--nloci";
 const int DEFAULT_NCOLS = 0;
 const string HELP_NCOLS = "Number of loci.";
 
-const string ARG_SORT = "-s";
+const string ARG_SORT = "--id-col";
 const int DEFAULT_SORT = 1;
-const string HELP_SORT = "Column where individual IDs are.";
+const string HELP_SORT = "Column where individual IDs are. (stru files only)";
 
 const string ARG_NDCOLS = "--ndc";
-const int DEFAULT_NDCOLS = 0;
-const string HELP_NDCOLS = "Number of non-data columns.";
+const int DEFAULT_NDCOLS = 1;
+const string HELP_NDCOLS = "Number of non-data columns. (stru files only)";
 
 const string ARG_NDROWS = "--ndr";
-const int DEFAULT_NDROWS = 0;
-const string HELP_NDROWS = "Number of non-data rows.";
+const int DEFAULT_NDROWS = 1;
+const string HELP_NDROWS = "Number of non-data rows. (stru files only)";
 
 const string ARG_THREAD = "--threads";
 const int DEFAULT_THREAD = 1;
@@ -90,7 +98,7 @@ typedef struct
   short **data;
   string *locus_names;
   string *ind_names;
-  map<string,int> sample_size;
+  //map<string,int> sample_size;
   int nloci;
   int nind;
 } structure_data; 
@@ -128,6 +136,9 @@ void printHelp(map<string,int> &argi, map<string,string> &args,
 	       map<string,bool> &argb);
 void readData_ind_asd(ifstream &fin,structure_data &data,
 	      int sort, int ndcols, int ndrows, int nrows, int ncols);
+void readData_ind_asd_tped_tfam(ifstream &pedin, ifstream &famin, structure_data &data,
+				int nind, int nloci);
+
 short int* split_int(ifstream &fin, int fields);
 string* split_str_str(int &size, const char *s, char c);
 double proportion_shared(short A, short B);
@@ -163,6 +174,8 @@ int main(int argc, char* argv[])
   params.addFlag(ARG_CALC_IBS,DEFAULT_CALC_IBS,"",HELP_CALC_IBS);
   params.addFlag(ARG_IBS_OUT,DEFAULT_IBS_OUT,"",HELP_IBS_OUT);
   params.addFlag(ARG_FILENAME,DEFAULT_FILENAME,"",HELP_FILENAME);
+  params.addFlag(ARG_TPED_FILENAME,DEFAULT_TPED_FILENAME,"",HELP_TPED_FILENAME);
+  params.addFlag(ARG_TFAM_FILENAME,DEFAULT_TFAM_FILENAME,"",HELP_TFAM_FILENAME);
   params.addFlag(ARG_NROWS,DEFAULT_NROWS,"",HELP_NROWS);
   params.addFlag(ARG_NCOLS,DEFAULT_NCOLS,"",HELP_NCOLS);
   params.addFlag(ARG_SORT,DEFAULT_SORT,"",HELP_SORT);
@@ -182,9 +195,11 @@ int main(int argc, char* argv[])
 
   string outname = params.getStringFlag(ARG_IBS_OUT);
   string filename = params.getStringFlag(ARG_FILENAME);
-  int nrows = params.getIntFlag(ARG_NROWS);
+  string tped_filename = params.getStringFlag(ARG_TPED_FILENAME);
+  string tfam_filename = params.getStringFlag(ARG_TFAM_FILENAME);
+  int nrows = params.getIntFlag(ARG_NROWS); //nchr
   int ndrows = params.getIntFlag(ARG_NDROWS);
-  int ncols = params.getIntFlag(ARG_NCOLS);
+  int ncols = params.getIntFlag(ARG_NCOLS);//nloci
   int ndcols = params.getIntFlag(ARG_NDCOLS);
   int sort = params.getIntFlag(ARG_SORT);
   int num_threads = params.getIntFlag(ARG_THREAD);
@@ -240,30 +255,55 @@ int main(int argc, char* argv[])
   if(PRINT_FULL && PRINT_FULL_LOG)
     {
       cerr << "Must choose only one of --full, --full-log.\n";
+      quit = true;
     }
+  if(filename.compare(DEFAULT_FILENAME) == 0 && 
+     tped_filename.compare(DEFAULT_TPED_FILENAME) == 0 && 
+     tfam_filename.compare(DEFAULT_TFAM_FILENAME) == 0)
+    {
+      cerr << "Must specify a data file to read, either stru or tped/tfam.\n";
+      quit = true;
+    }
+
+  if(filename.compare(DEFAULT_FILENAME) != 0 && 
+     (tped_filename.compare(DEFAULT_TPED_FILENAME) != 0 || 
+      tfam_filename.compare(DEFAULT_TFAM_FILENAME) != 0))
+    {
+      cerr << "Must specify only one type of data file to read, either stru or tped/tfam.\n";
+      quit = true;
+    }
+
+  if(filename.compare(DEFAULT_FILENAME) == 0 && 
+     ((tped_filename.compare(DEFAULT_TPED_FILENAME) == 0 && 
+       tfam_filename.compare(DEFAULT_TFAM_FILENAME) != 0) ||
+      (tped_filename.compare(DEFAULT_TPED_FILENAME) != 0 && 
+       tfam_filename.compare(DEFAULT_TFAM_FILENAME) == 0)))
+    {
+      cerr << "Must specify both tped and tfam (or use stru).\n";
+      quit = true;
+    }
+  if((CHECK_FILE || CHECK_FILE_DEEP) && (tped_filename.compare(DEFAULT_TPED_FILENAME) != 0 || 
+					 tfam_filename.compare(DEFAULT_TFAM_FILENAME) != 0))
+    {
+      cerr << ARG_CHECK_FILE << " and " << ARG_CHECK_FILE_DEEP << " are not supported with tped/tfam files.\n";
+      quit = true;
+    }
+
+  bool STRU_DATA = false;
+
+  if(filename.compare(DEFAULT_FILENAME) != 0) STRU_DATA = true; 
+
 
   if(quit) return -1;
 
   bool FILE_STATUS_GOOD;
-  if(CHECK_FILE || CHECK_FILE_DEEP)
+  if((CHECK_FILE || CHECK_FILE_DEEP) && (tped_filename.compare(DEFAULT_TPED_FILENAME) == 0 && 
+      tfam_filename.compare(DEFAULT_TFAM_FILENAME) == 0))
     {
       FILE_STATUS_GOOD = checkFile(params);
       if(FILE_STATUS_GOOD) cerr << "File appears to be ok.\n";
       return -1;
-    }
-
-
-  ifstream fin;
-  fin.open(filename.c_str());
-  
-  if(fin.fail())
-    {
-      cerr << "Could not open " << filename << " for reading.'n";
-      return -1;
-    }
-  
-  
-  
+    }  
 
   DIST_MAT = new double*[nind];
   for(int i = 0; i < nind;i++)
@@ -301,8 +341,38 @@ int main(int argc, char* argv[])
 	}
     }
 
+
+  ifstream fin,fin2;
   structure_data data;
-  readData_ind_asd(fin,data,sort,ndcols,ndrows,nrows,ncols);
+  if(STRU_DATA)
+    {
+      fin.open(filename.c_str());
+  
+      if(fin.fail())
+	{
+	  cerr << "Could not open " << filename << " for reading.'n";
+	  return -1;
+	}
+      readData_ind_asd(fin,data,sort,ndcols,ndrows,nrows,ncols);
+    }
+  else
+    {
+      fin.open(tped_filename.c_str());
+      if(fin.fail())
+	{
+	  cerr << "Could not open " << tped_filename << " for reading.'n";
+	  return -1;
+	}
+
+      fin2.open(tfam_filename.c_str());
+      if(fin2.fail())
+	{
+	  cerr << "Could not open " << tfam_filename << " for reading.'n";
+	  return -1;
+	}      
+      readData_ind_asd_tped_tfam(fin,fin2,data,nind,ncols);
+    }
+  
 
   data.nind = nrows/2;
   work_order_t *order;
@@ -1080,6 +1150,69 @@ void readData_ind_asd(ifstream &fin,structure_data &data,
 	}
       delete [] tmp;
     }
+
+  return;
+}
+
+void readData_ind_asd_tped_tfam(ifstream &pedin, ifstream &famin, structure_data &data,
+				int nind, int nloci)
+{
+  string line;
+  string junk;
+  //int nind = nrows/2;
+  
+  data.nind = nind;
+  data.data = new short*[nind];
+  for(int i = 0; i < nind; i++) data.data[i] = new short[nloci];
+  data.ind_names = new string[nind];
+  
+  for(int i = 0; i < nind; i++)
+    {
+      famin >> junk;
+      famin >> data.ind_names[i];
+      getline(famin,line);
+    }
+  
+  data.nloci = nloci;
+  data.locus_names = new string[nloci];
+  
+  string *zeroAllele = new string[nloci];
+  for (int i = 0; i < nloci; i++) zeroAllele[i] = "-9";
+  string allele1, allele2;
+  short alleleCount = 0;
+  for (int locus = 0; locus < nloci; locus++)
+    {
+      pedin >> junk;
+      pedin >> data.locus_names[locus];
+      pedin >> junk;
+      pedin >> junk;
+
+      for(int ind = 0; ind < nind; ind++)
+	{
+	  pedin >> allele1;
+	  pedin >> allele2;
+	  if(allele1.compare("-9") == 0 || allele2.compare("-9") == 0)
+	    {
+	      data.data[ind][locus] = -9;
+	    }
+	  else if(zeroAllele[locus].compare("-9") == 0)
+	    {
+	      alleleCount = 0;
+	      zeroAllele[locus] = allele1;
+	      if(allele2.compare(zeroAllele[locus]) != 0) alleleCount++;
+	      data.data[ind][locus] = alleleCount;
+	    }
+	  else
+	    {
+	      alleleCount = 0;
+	      if(allele1.compare(zeroAllele[locus]) != 0) alleleCount++;
+	      if(allele2.compare(zeroAllele[locus]) != 0) alleleCount++;
+	      data.data[ind][locus] = alleleCount;
+	    }
+	}
+    }
+
+  delete [] zeroAllele;
 
   return;
 }
