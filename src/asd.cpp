@@ -96,6 +96,14 @@ const string ARG_TPED_MISSING = "--tped-mis";
 const string DEFAULT_TPED_MISSING = "0";
 const string HELP_TPED_MISSING = "For stru files, set the missing data value (default is 0).";
 
+const string ARG_CALC_ASD = "--asd";
+const bool DEFAULT_CALC_ASD = false;
+const string HELP_CALC_ASD = "Calculate individual pairwise allele sharing distances.";
+
+const string ARG_CALC_FST = "--fst";
+const bool DEFAULT_CALC_FST = false;
+const string HELP_CALC_FST = "Calculate population pairwise Fst. (IN DEVELOPMENT, do not use.)";
+
 const char DEL = ' ';
 const string EMPTY_STRING = " ";
 
@@ -128,6 +136,15 @@ typedef struct
   string type;
   int nind;
 } output_order_t;
+
+typedef struct
+{
+  double **data;
+  string *pop_names;
+  int *nind;
+  int npop;
+  int nloci;
+} population_data;
 
 void output(void *order);
 int search(string *s,int size,string key);
@@ -191,6 +208,8 @@ int main(int argc, char* argv[])
   params.addFlag(ARG_FULL_LOG,DEFAULT_FULL_LOG,"",HELP_FULL_LOG);
   params.addFlag(ARG_STRU_MISSING,DEFAULT_STRU_MISSING,"",HELP_STRU_MISSING);
   params.addFlag(ARG_TPED_MISSING,DEFAULT_TPED_MISSING,"",HELP_TPED_MISSING);
+  params.addFlag(ARG_CALC_FST,DEFAULT_CALC_FST,"",HELP_CALC_FST);
+  //params.addFlag(ARG_CALC_ASD,DEFAULT_CALC_ASD,"",HELP_CALC_ASD);
 
   try
     {
@@ -220,7 +239,9 @@ int main(int argc, char* argv[])
   bool CHECK_FILE_DEEP = params.getBoolFlag(ARG_CHECK_FILE_DEEP);
   int STRU_MISSING = params.getIntFlag(ARG_STRU_MISSING);
   string TPED_MISSING = params.getStringFlag(ARG_TPED_MISSING);
-
+  //bool ASD = params.getBoolFlag(ARG_CALC_ASD);
+  bool FST = params.getBoolFlag(ARG_CALC_FST);
+  bool ASD = (FST) ? false : true;
 
   if(nrows <= 0)
     {
@@ -299,12 +320,10 @@ int main(int argc, char* argv[])
       quit = true;
     }
 
-  bool STRU_DATA = false;
-
-  if(filename.compare(DEFAULT_FILENAME) != 0) STRU_DATA = true; 
-
-
   if(quit) return -1;
+  
+  bool STRU_DATA = false;
+  if(filename.compare(DEFAULT_FILENAME) != 0) STRU_DATA = true; 
 
   bool FILE_STATUS_GOOD;
   if((CHECK_FILE || CHECK_FILE_DEEP) && (tped_filename.compare(DEFAULT_TPED_FILENAME) == 0 && 
@@ -363,7 +382,8 @@ int main(int argc, char* argv[])
 	  cerr << "Could not open " << filename << " for reading.'n";
 	  return -1;
 	}
-      readData_ind_asd(fin,data,sort,ndcols,ndrows,nrows,ncols,STRU_MISSING);
+
+      if(ASD) readData_ind_asd(fin,data,sort,ndcols,ndrows,nrows,ncols,STRU_MISSING);
     }
   else
     {
@@ -380,7 +400,7 @@ int main(int argc, char* argv[])
 	  cerr << "Could not open " << tfam_filename << " for reading.'n";
 	  return -1;
 	}      
-      readData_ind_asd_tped_tfam(fin,fin2,data,nind,ncols,TPED_MISSING);
+      if(ASD) readData_ind_asd_tped_tfam(fin,fin2,data,nind,ncols,TPED_MISSING);
     }
   
 
@@ -521,7 +541,7 @@ int main(int argc, char* argv[])
 
   delete [] NUM_PER_THREAD;
   delete [] peer;
-  delete [] data.locus_names;
+  //delete [] data.locus_names;
 
   for(int i = 0; i < 4; i++)
     {
@@ -1167,9 +1187,7 @@ void readData_ind_asd(ifstream &fin,structure_data &data,
 void readData_ind_asd_tped_tfam(ifstream &pedin, ifstream &famin, structure_data &data,
 				int nind, int nloci, string TPED_MISSING)
 {
-  string line;
   string junk;
-  //int nind = nrows/2;
   
   data.nind = nind;
   data.data = new short*[nind];
@@ -1180,7 +1198,7 @@ void readData_ind_asd_tped_tfam(ifstream &pedin, ifstream &famin, structure_data
     {
       famin >> junk;
       famin >> data.ind_names[i];
-      getline(famin,line);
+      getline(famin,junk);
     }
   
   data.nloci = nloci;
