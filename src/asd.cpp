@@ -208,7 +208,7 @@ int main(int argc, char* argv[])
   params.addFlag(ARG_FULL_LOG,DEFAULT_FULL_LOG,"",HELP_FULL_LOG);
   params.addFlag(ARG_STRU_MISSING,DEFAULT_STRU_MISSING,"",HELP_STRU_MISSING);
   params.addFlag(ARG_TPED_MISSING,DEFAULT_TPED_MISSING,"",HELP_TPED_MISSING);
-  params.addFlag(ARG_CALC_FST,DEFAULT_CALC_FST,"",HELP_CALC_FST);
+  //params.addFlag(ARG_CALC_FST,DEFAULT_CALC_FST,"",HELP_CALC_FST);
   //params.addFlag(ARG_CALC_ASD,DEFAULT_CALC_ASD,"",HELP_CALC_ASD);
 
   try
@@ -240,9 +240,8 @@ int main(int argc, char* argv[])
   int STRU_MISSING = params.getIntFlag(ARG_STRU_MISSING);
   string TPED_MISSING = params.getStringFlag(ARG_TPED_MISSING);
   //bool ASD = params.getBoolFlag(ARG_CALC_ASD);
-  bool FST = params.getBoolFlag(ARG_CALC_FST);
-  bool ASD = (FST) ? false : true;
-
+  //bool FST = params.getBoolFlag(ARG_CALC_FST);
+  
   if(nrows <= 0)
     {
       cerr << "Number of rows must be > 0.\n";
@@ -383,7 +382,7 @@ int main(int argc, char* argv[])
 	  return -1;
 	}
 
-      if(ASD) readData_ind_asd(fin,data,sort,ndcols,ndrows,nrows,ncols,STRU_MISSING);
+      /* if(ASD)*/ readData_ind_asd(fin,data,sort,ndcols,ndrows,nrows,ncols,STRU_MISSING);
     }
   else
     {
@@ -400,7 +399,7 @@ int main(int argc, char* argv[])
 	  cerr << "Could not open " << tfam_filename << " for reading.'n";
 	  return -1;
 	}      
-      if(ASD) readData_ind_asd_tped_tfam(fin,fin2,data,nind,ncols,TPED_MISSING);
+      /* if(ASD)*/ readData_ind_asd_tped_tfam(fin,fin2,data,nind,ncols,TPED_MISSING);
     }
   
 
