@@ -1,50 +1,63 @@
 usage
-./asd --stru <filename> --nloci <number of loci> --nchr <number of chromosomes> --ndc <number of non-data cols> --ndr <number of non-data rows> --id-col <column where individual names are>
 
-optional flags --full, --full-log, --ibs-all, --out, --check-file, --check-deep, --tped, --tfam, --stru-mis, --tped-mis
+./asd --stru <filename>.stru --nloci <number of loci> --nchr <number of chromosomes> --ndc <number of non-data cols> --ndr <number of non-data rows> --id-col <column where individual names are>
+
+or
+
+./asd --tped <filename>.tped --tfam <filename>.tfam
+
+optional flags --full, --full-log, --ibs-all, --out, --check-file, --check-deep, --stru-mis, --tped-mis
 
 For STRU files, alleles are assumed to be coded 0/1 with missing data as -9 (change with --stru-mis).  TPED/TFAM files are assumed to be biallelic but can be coded with arbitrary alleles.  Missing data as coded 0 (change with --tped-mis).  If you encounter segfaults, run with --check-file or --check-deep to make sure there is not a problem with the datafile (only works with STRU).  Other segfaults should be reported to <szpiech@gmail.com>.
 
 Command line arguments:
 
---stru <string> : The input data filename (stru format), data 
-       		: must be biallelic and coded 0/1 (-9 for missing data).
---stru-mis <int> : For stru files, set the missing data value (must be an integer, default is -9).
---tped <string> : The input data filename (tped format), also 
-       		: requires a .tfam file (--tfam).  Data must be biallelic, 
-		: but alleles can be arbitrarily coded.  Missing data must be -9.
---tfam <string> : The input data filename (tfam format), also requires a .tped file (--tped).
---tped-mis <string> : For stru files, set the missing data value (default is 0).
---nloci <int>    : the number of loci in your datafile
---nchr <int>    : the number of chromosomes in your datafile
-            : (2N, where N is # of individuals)
---ndc <int> : the number of nondata columns before the data(stru files only)
---ndr <int> : the number of nondata rows before the data (including loci names)(stru files only)
---id-col <int>    : the nondata column where individual names are (stru files only)
---threads <int>: number of threads to spawn (each thread will take an equal 
-	       : portion of the workload to do), note that each core/processor
-	       : can only process one thread at a time, with the exception
-	       : of the new workstations, which can process two simultaneously
-	       : per core
---full      : prints the allele sharing matrix to stdout if set
-	    : if you do not set --full you will get two r/2 x r/2 matrices
-	    : the first is the number of loci used for each pairwise comparison
-	    : the second is the untransformed IBS matrix
-	    : in order to recover the allele sharing distance matrix
-	    : divide this number by the number of loci in the appropriate
-	    : cell, and then transform by 1-(ps)
---full-log  : same as --full but calculates -ln(ps)
---ibs-all   : produces three matricies for IBS 0/1/2 counts
-	      can be run with or without --full/--full-log
---out <string> : outputs results to file(s) named
-		      <string>.dist is the allele sharing distance matrix
-		      <string>.ibs0 is the IBS 0 pairwise matrix (if --ibs-all set)
-		      <string>.ibs1 is the IBS 1 pairwise matrix (if --ibs-all set)
-		      <string>.ibs2 is the IBS 2 pairwise matrix (if --ibs-all set)
---check-file: a quick check for data format integrity (no calculations, no support for tped/tfam)
---check-deep: a more detailed check for data format integrity (no calculations, no support for tped/tfam)
+	General
 
-NOTE: Multi-dimensional scaling plots can be created easily in R with the following commands:
+	--threads <int>	 : number of threads to spawn (each thread will take an equal 
+	       	  	 : portion of the workload to do), note that each core/processor
+	      		 : can only process one thread at a time, with the exception
+	       		 : of the new workstations, which can process two simultaneously
+	       		 : per core
+	--full      	 : prints the allele sharing matrix to stdout if set
+	    		 : if you do not set --full you will get two r/2 x r/2 matrices
+	    		 : the first is the number of loci used for each pairwise comparison
+	    		 : the second is the untransformed IBS matrix
+	    		 : in order to recover the allele sharing distance matrix
+	    		 : divide this number by the number of loci in the appropriate
+	    		 : cell, and then transform by 1-(ps)
+	--full-log  	 : same as --full but calculates -ln(ps)
+	--ibs-all   	 : produces three matricies for IBS 0/1/2 counts
+	      		 : can be run with or without --full/--full-log
+	--out <str>      : outputs results to file(s) named
+		         : <string>.dist is the allele sharing distance matrix
+		         : <string>.ibs0 is the IBS 0 pairwise matrix (if --ibs-all set)
+		         : <string>.ibs1 is the IBS 1 pairwise matrix (if --ibs-all set)
+		         : <string>.ibs2 is the IBS 2 pairwise matrix (if --ibs-all set)
+
+	Structure data
+
+	--stru <str>     : The input data filename (stru format), data 
+       			 : must be biallelic and coded 0/1 (-9 for missing data).
+	--stru-mis <int> : For stru files, set the missing data value (must be an integer, default is -9).
+	--nloci <int>    : the number of loci in your datafile
+	--nchr <int>     : the number of chromosomes in your datafile
+               		 : (2N, where N is # of individuals)
+	--ndc <int> 	 : the number of nondata columns before the data(stru files only)
+	--ndr <int> 	 : the number of nondata rows before the data (including loci names)(stru files only)
+	--id-col <int>   : the nondata column where individual names are (stru files only)
+	--check-file 	 : a quick check for data format integrity (no calculations, no support for tped/tfam)
+	--check-deep	 : a more detailed check for data format integrity (no calculations, no support for tped/tfam)
+
+	TPED/TFAM data
+
+	--tped <str>	 : The input data filename (tped format), also 
+       			 : requires a .tfam file (--tfam).  Data must be biallelic, 
+			 : but alleles can be arbitrarily coded.  Missing data must be -9.
+	--tfam <str>     : The input data filename (tfam format), also requires a .tped file (--tped).
+	--tped-mis <str> : For stru files, set the missing data value (default is 0).
+
+NOTE: Multi-dimensional scaling plots can be created easily in R with the following commands (assuming --full or --full-log is used):
 
       data<-read.table("<string>.dist",header=TRUE)
       data.mds<-cmdscale(data)
@@ -52,7 +65,7 @@ NOTE: Multi-dimensional scaling plots can be created easily in R with the follow
 
 A toy example with no missing data:
 
-./asd --stru test_data_1 --nchr 12 --nloci 5 --ndc 1 --ndr 1 --id-col 1 --full-log
+./asd --stru test_data_1.stru --nchr 12 --nloci 5 --ndc 1 --ndr 1 --id-col 1 --full-log
 
 output:
 
@@ -65,7 +78,7 @@ ind4 0.356675 0.510826 0.223144 0.356675 0 0.916291
 ind5 0.693147 1.60944 0.916291 0.693147 0.916291 0 
 
 
-./asd --stru test_data_1 --nchr 12 --nloci 5 --ndc 1 --ndr 1 --id-col 1
+./asd --stru test_data_1.stru --nchr 12 --nloci 5 --ndc 1 --ndr 1 --id-col 1
 
 output:
 
@@ -87,7 +100,7 @@ ind5 2.5 1 2 2.5 2 5
 
 A toy example with missing data:
 
-./asd --stru test_data_2 --nchr 12 --nloci 5 --ndc 1 --ndr 1 --id-col 1 --full-log
+./asd --stru test_data_2.stru --nchr 12 --nloci 5 --ndc 1 --ndr 1 --id-col 1 --full-log
 
 output:
 
@@ -101,7 +114,7 @@ ind5 0.182322 1.09861 0.693147 0.470004 0.980829 0
 
 
 
-./asd --stru test_data_2 --nchr 12 --nloci 5 --ndc 1 --ndr 1 --id-col 1
+./asd --stru test_data_2.stru --nchr 12 --nloci 5 --ndc 1 --ndr 1 --id-col 1
 
 
 output:
