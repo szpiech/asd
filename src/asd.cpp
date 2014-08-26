@@ -25,6 +25,7 @@ asd - a program to quickly calculate pairwise individual allele sharing distance
 #include <cstdlib>
 #include <cmath>
 #include <cctype>
+#include "gzstream.h"    
 #include "param_t.h"
 using namespace std;
 
@@ -157,22 +158,22 @@ bool parse_cmd_line(int argc, char* argv[],
 
 void printHelp(map<string,int> &argi, map<string,string> &args,
 	       map<string,bool> &argb);
-void readData_ind_asd(ifstream &fin,structure_data &data,
+void readData_ind_asd(igzstream &fin,structure_data &data,
 		      int sort, int ndcols, int ndrows, int nrows, int ncols, int STRU_MISSING);
-void readData_ind_asd_tped_tfam(ifstream &pedin, ifstream &famin, structure_data &data,
+void readData_ind_asd_tped_tfam(igzstream &pedin, igzstream &famin, structure_data &data,
 				int &nrow, int &nloci, string TPED_MISSING);
 
-short int* split_int(ifstream &fin, int fields);
+short int* split_int(igzstream &fin, int fields);
 string* split_str_str(int &size, const char *s, char c);
 double proportion_shared(short A, short B);
 void calc_pw_as_dist(void* work_order);
 
 bool checkFile(param_t& params);
 int countFields(string junk);
-bool readData_Check(ifstream &fin,structure_data &data,
+bool readData_Check(igzstream &fin,structure_data &data,
 		    int sort, int ndcols, int ndrows, 
 		    int nrows, int ncols);
-void readData_pop_freq(ifstream &fin,structure_data &data,
+void readData_pop_freq(igzstream &fin,structure_data &data,
 		       int sort, int ndcols, int ndrows,
 		       int nrows, int ncols);
 
@@ -326,7 +327,7 @@ int main(int argc, char* argv[])
       return -1;
     }  
 
-  ifstream fin,fin2;
+  igzstream fin,fin2;
   structure_data data;
   if(STRU)
     {
@@ -547,7 +548,7 @@ int main(int argc, char* argv[])
 }
 
 
-bool readData_Check(ifstream &fin,structure_data &data,
+bool readData_Check(igzstream &fin,structure_data &data,
 	      int sort, int ndcols, int ndrows, 
 	      int nrows, int ncols)
 {
@@ -671,7 +672,7 @@ bool checkFile(param_t& params)
   bool CHECK_FILE_DEEP = params.getBoolFlag(ARG_CHECK_FILE_DEEP);
   bool FILE_STATUS = true;
 
-  ifstream fin;
+  igzstream fin;
   fin.open(filename.c_str());
   
   if(fin.fail())
@@ -1090,7 +1091,7 @@ double proportion_shared(short A, short B)
   return 0;
 }
 
-void readData_ind_asd(ifstream &fin,structure_data &data,
+void readData_ind_asd(igzstream &fin,structure_data &data,
 	      int sort, int ndcols, int ndrows, 
 		      int nrows, int ncols, int STRU_MISSING)
 {
@@ -1178,7 +1179,7 @@ void readData_ind_asd(ifstream &fin,structure_data &data,
   return;
 }
 
-void readData_ind_asd_tped_tfam(ifstream &pedin, ifstream &famin, structure_data &data,
+void readData_ind_asd_tped_tfam(igzstream &pedin, igzstream &famin, structure_data &data,
 				int &nrow, int &nloci, string TPED_MISSING)
 {
   string junk;
@@ -1257,7 +1258,7 @@ void readData_ind_asd_tped_tfam(ifstream &pedin, ifstream &famin, structure_data
 }
 
 
-void readData_pop_freq(ifstream &fin,structure_data &data,
+void readData_pop_freq(igzstream &fin,structure_data &data,
 	      int sort, int ndcols, int ndrows, 
 	      int nrows, int ncols)
 {
@@ -1373,7 +1374,7 @@ int put(string *s,int size,string key)
 // a vector of strings
 // The vector is passed by reference and cleared each time
 // The number of strings split out is returned
-short int* split_int(ifstream &fin, int fields)
+short int* split_int(igzstream &fin, int fields)
 {
   /*
   vector<string> v;
