@@ -25,7 +25,7 @@ asd - a program to quickly calculate pairwise individual allele sharing distance
 #include <cstdlib>
 #include <cmath>
 #include <cctype>
-#include "gzstream.h"    
+#include "gzstream.h"
 #include "param_t.h"
 using namespace std;
 
@@ -110,72 +110,77 @@ const string EMPTY_STRING = " ";
 
 typedef struct
 {
-  short **data;
-  string *locus_names;
-  string *ind_names;
-  //map<string,int> sample_size;
-  int nloci;
-  int nind;
-} structure_data; 
+    short **data;
+    string *locus_names;
+    string *ind_names;
+    //map<string,int> sample_size;
+    int nloci;
+    int nind;
+} structure_data;
 
 typedef struct
 {
-  int first_index;
-  int last_index;
-  structure_data *stru_data;
-  int missing;
-  bool CALC_ALL_IBS;
+    int first_index;
+    int last_index;
+    structure_data *stru_data;
+    int missing;
+    bool CALC_ALL_IBS;
 } work_order_t;
 
 typedef struct
 {
-  bool PRINT_FULL;
-  bool PRINT_FULL_LOG;
-  ostream *out;
-  string *ind_names;
-  int ncols;
-  string type;
-  int nind;
+    bool PRINT_FULL;
+    bool PRINT_FULL_LOG;
+    ostream *out;
+    string *ind_names;
+    int ncols;
+    string type;
+    int nind;
 } output_order_t;
 
 typedef struct
 {
-  double **data;
-  string *pop_names;
-  int *nind;
-  int npop;
-  int nloci;
+    double **data;
+    string *pop_names;
+    int *nind;
+    int npop;
+    int nloci;
 } population_data;
 
 void output(void *order);
-int search(string *s,int size,string key);
-int put(string *s,int size,string key);
+int search(string *s, int size, string key);
+int put(string *s, int size, string key);
 
-bool parse_cmd_line(int argc, char* argv[],
-		    map<string,int> &argi,
-		    map<string,string> &args,
-		    map<string,bool> &argb);
+bool parse_cmd_line(int argc, char *argv[],
+                    map<string, int> &argi,
+                    map<string, string> &args,
+                    map<string, bool> &argb);
 
-void printHelp(map<string,int> &argi, map<string,string> &args,
-	       map<string,bool> &argb);
-void readData_ind_asd(igzstream &fin,structure_data &data,
-		      int sort, int ndcols, int ndrows, int nrows, int ncols, int STRU_MISSING);
+void printHelp(map<string, int> &argi, map<string, string> &args,
+               map<string, bool> &argb);
+void readData_ind_asd(igzstream &fin, structure_data &data,
+                      int sort, int ndcols, int ndrows, int nrows, int ncols, int STRU_MISSING);
+
+void readData_ind_asd_tped_tfam(string tped_filename, string tfam_filename, structure_data &data,
+                                int &nrow, int &nloci, string TPED_MISSING);
+
+/*
 void readData_ind_asd_tped_tfam(igzstream &pedin, igzstream &famin, structure_data &data,
-				int &nrow, int &nloci, string TPED_MISSING);
-
-short int* split_int(igzstream &fin, int fields);
-string* split_str_str(int &size, const char *s, char c);
+                                int &nrow, int &nloci, string TPED_MISSING);
+*/
+short int *split_int(igzstream &fin, int fields);
+string *split_str_str(int &size, const char *s, char c);
 double proportion_shared(short A, short B);
-void calc_pw_as_dist(void* work_order);
+void calc_pw_as_dist(void *work_order);
 
-bool checkFile(param_t& params);
+bool checkFile(param_t &params);
 int countFields(string junk);
-bool readData_Check(igzstream &fin,structure_data &data,
-		    int sort, int ndcols, int ndrows, 
-		    int nrows, int ncols);
-void readData_pop_freq(igzstream &fin,structure_data &data,
-		       int sort, int ndcols, int ndrows,
-		       int nrows, int ncols);
+bool readData_Check(igzstream &fin, structure_data &data,
+                    int sort, int ndcols, int ndrows,
+                    int nrows, int ncols);
+void readData_pop_freq(igzstream &fin, structure_data &data,
+                       int sort, int ndcols, int ndrows,
+                       int nrows, int ncols);
 
 
 double **DIST_MAT;
@@ -189,1266 +194,1309 @@ pthread_mutex_t mutex_ibs_0 = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex_ibs_1 = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex_ibs_2 = PTHREAD_MUTEX_INITIALIZER;
 
-int main(int argc, char* argv[])
+int main(int argc, char *argv[])
 {
-  param_t params;
-  params.addFlag(ARG_THREAD,DEFAULT_THREAD,"",HELP_THREAD);
-  params.addFlag(ARG_CHECK_FILE,DEFAULT_CHECK_FILE,"",HELP_CHECK_FILE);
-  params.addFlag(ARG_CHECK_FILE_DEEP,DEFAULT_CHECK_FILE_DEEP,"",HELP_CHECK_FILE_DEEP);
-  params.addFlag(ARG_CALC_IBS,DEFAULT_CALC_IBS,"",HELP_CALC_IBS);
-  params.addFlag(ARG_IBS_OUT,DEFAULT_IBS_OUT,"",HELP_IBS_OUT);
-  params.addFlag(ARG_FILENAME,DEFAULT_FILENAME,"",HELP_FILENAME);
-  params.addFlag(ARG_TPED_FILENAME,DEFAULT_TPED_FILENAME,"",HELP_TPED_FILENAME);
-  params.addFlag(ARG_TFAM_FILENAME,DEFAULT_TFAM_FILENAME,"",HELP_TFAM_FILENAME);
-  params.addFlag(ARG_NROWS,DEFAULT_NROWS,"",HELP_NROWS);
-  params.addFlag(ARG_NCOLS,DEFAULT_NCOLS,"",HELP_NCOLS);
-  params.addFlag(ARG_SORT,DEFAULT_SORT,"",HELP_SORT);
-  params.addFlag(ARG_NDCOLS,DEFAULT_NDCOLS,"",HELP_NDCOLS);
-  params.addFlag(ARG_NDROWS,DEFAULT_NDROWS,"",HELP_NDROWS);
-  params.addFlag(ARG_FULL,DEFAULT_FULL,"",HELP_FULL);
-  params.addFlag(ARG_FULL_LOG,DEFAULT_FULL_LOG,"",HELP_FULL_LOG);
-  params.addFlag(ARG_STRU_MISSING,DEFAULT_STRU_MISSING,"",HELP_STRU_MISSING);
-  params.addFlag(ARG_TPED_MISSING,DEFAULT_TPED_MISSING,"",HELP_TPED_MISSING);
-  //params.addFlag(ARG_CALC_FST,DEFAULT_CALC_FST,"",HELP_CALC_FST);
-  //params.addFlag(ARG_CALC_ASD,DEFAULT_CALC_ASD,"",HELP_CALC_ASD);
+    param_t params;
+    params.addFlag(ARG_THREAD, DEFAULT_THREAD, "", HELP_THREAD);
+    params.addFlag(ARG_CHECK_FILE, DEFAULT_CHECK_FILE, "", HELP_CHECK_FILE);
+    params.addFlag(ARG_CHECK_FILE_DEEP, DEFAULT_CHECK_FILE_DEEP, "", HELP_CHECK_FILE_DEEP);
+    params.addFlag(ARG_CALC_IBS, DEFAULT_CALC_IBS, "", HELP_CALC_IBS);
+    params.addFlag(ARG_IBS_OUT, DEFAULT_IBS_OUT, "", HELP_IBS_OUT);
+    params.addFlag(ARG_FILENAME, DEFAULT_FILENAME, "", HELP_FILENAME);
+    params.addFlag(ARG_TPED_FILENAME, DEFAULT_TPED_FILENAME, "", HELP_TPED_FILENAME);
+    params.addFlag(ARG_TFAM_FILENAME, DEFAULT_TFAM_FILENAME, "", HELP_TFAM_FILENAME);
+    params.addFlag(ARG_NROWS, DEFAULT_NROWS, "", HELP_NROWS);
+    params.addFlag(ARG_NCOLS, DEFAULT_NCOLS, "", HELP_NCOLS);
+    params.addFlag(ARG_SORT, DEFAULT_SORT, "", HELP_SORT);
+    params.addFlag(ARG_NDCOLS, DEFAULT_NDCOLS, "", HELP_NDCOLS);
+    params.addFlag(ARG_NDROWS, DEFAULT_NDROWS, "", HELP_NDROWS);
+    params.addFlag(ARG_FULL, DEFAULT_FULL, "", HELP_FULL);
+    params.addFlag(ARG_FULL_LOG, DEFAULT_FULL_LOG, "", HELP_FULL_LOG);
+    params.addFlag(ARG_STRU_MISSING, DEFAULT_STRU_MISSING, "", HELP_STRU_MISSING);
+    params.addFlag(ARG_TPED_MISSING, DEFAULT_TPED_MISSING, "", HELP_TPED_MISSING);
+    //params.addFlag(ARG_CALC_FST,DEFAULT_CALC_FST,"",HELP_CALC_FST);
+    //params.addFlag(ARG_CALC_ASD,DEFAULT_CALC_ASD,"",HELP_CALC_ASD);
 
-  try
+    try
     {
-      params.parseCommandLine(argc,argv);
+        params.parseCommandLine(argc, argv);
     }
-  catch (...)
+    catch (...)
     {
-      return 1;
-    }
-
-  string outname = params.getStringFlag(ARG_IBS_OUT);
-  string filename = params.getStringFlag(ARG_FILENAME);
-  string tped_filename = params.getStringFlag(ARG_TPED_FILENAME);
-  string tfam_filename = params.getStringFlag(ARG_TFAM_FILENAME);
-  int nrows = params.getIntFlag(ARG_NROWS); //nchr
-  int ndrows = params.getIntFlag(ARG_NDROWS);
-  int ncols = params.getIntFlag(ARG_NCOLS);//nloci
-  int ndcols = params.getIntFlag(ARG_NDCOLS);
-  int sort = params.getIntFlag(ARG_SORT);
-  int num_threads = params.getIntFlag(ARG_THREAD);
-  int nind = nrows/2;
-  bool PRINT_FULL = params.getBoolFlag(ARG_FULL);
-  bool PRINT_FULL_LOG = params.getBoolFlag(ARG_FULL_LOG);
-  bool quit = false;
-  bool CALC_ALL_IBS = params.getBoolFlag(ARG_CALC_IBS);
-  bool CHECK_FILE = params.getBoolFlag(ARG_CHECK_FILE);
-  bool CHECK_FILE_DEEP = params.getBoolFlag(ARG_CHECK_FILE_DEEP);
-  int STRU_MISSING = params.getIntFlag(ARG_STRU_MISSING);
-  string TPED_MISSING = params.getStringFlag(ARG_TPED_MISSING);
-  //bool ASD = params.getBoolFlag(ARG_CALC_ASD);
-  //bool FST = params.getBoolFlag(ARG_CALC_FST);
-  bool STRU = (filename.compare(DEFAULT_FILENAME) != 0);
-  bool TPED_AND_TFAM = (tped_filename.compare(DEFAULT_TPED_FILENAME) != 0 && tfam_filename.compare(DEFAULT_TFAM_FILENAME) != 0);
-  bool TPED_OR_TFAM = (tped_filename.compare(DEFAULT_TPED_FILENAME) != 0 || tfam_filename.compare(DEFAULT_TFAM_FILENAME) != 0);
-
-
-  if(nrows <= 0 && STRU)
-    {
-      cerr << "Number of chr must be > 0.\n";
-      quit = true;
-    }
-  if(ncols <= 0 && STRU)
-    {
-      cerr << "Number of loci must be > 0.\n";
-      quit = true;
-    }
-  if(sort <= 0 && STRU)
-    {
-      cerr << "Column to sort by must be > 0.\n";
-      quit = true;
-    }
-  if(ndcols < 0 && STRU)
-    {
-      cerr << "Non-data columns must be >= 0.\n";
-      quit = true;
-    }
-  if(ndrows <= 0 && STRU)
-    {
-      cerr << "Non-data rows must be > 0.\n";
-      quit = true;
-    }
-  if(sort > ndcols && STRU)
-    {
-      cerr << "Must sort by a non-data column.\n";
-      quit = true;
-    }
-  if(num_threads <= 0)
-    {
-      cerr << "Must have a positive number of threads.\n";
-      quit = true;
-    }
-  /*  if(num_threads > ncols)
-    {
-      cerr << "Number of threads must be < number of loci.\n";
-      quit = true;
-    }
-  */
-  if(PRINT_FULL && PRINT_FULL_LOG)
-    {
-      cerr << "Must choose only one of --full, --full-log.\n";
-      quit = true;
-    }
-  if(!STRU && !TPED_AND_TFAM)
-    {
-      cerr << "Must specify a data file to read, either stru or tped/tfam.\n";
-      quit = true;
+        return 1;
     }
 
-  if(STRU && TPED_OR_TFAM)
+    string outname = params.getStringFlag(ARG_IBS_OUT);
+    string filename = params.getStringFlag(ARG_FILENAME);
+    string tped_filename = params.getStringFlag(ARG_TPED_FILENAME);
+    string tfam_filename = params.getStringFlag(ARG_TFAM_FILENAME);
+    int nrows = params.getIntFlag(ARG_NROWS); //nchr
+    int ndrows = params.getIntFlag(ARG_NDROWS);
+    int ncols = params.getIntFlag(ARG_NCOLS);//nloci
+    int ndcols = params.getIntFlag(ARG_NDCOLS);
+    int sort = params.getIntFlag(ARG_SORT);
+    int num_threads = params.getIntFlag(ARG_THREAD);
+    int nind = nrows / 2;
+    bool PRINT_FULL = params.getBoolFlag(ARG_FULL);
+    bool PRINT_FULL_LOG = params.getBoolFlag(ARG_FULL_LOG);
+    bool quit = false;
+    bool CALC_ALL_IBS = params.getBoolFlag(ARG_CALC_IBS);
+    bool CHECK_FILE = params.getBoolFlag(ARG_CHECK_FILE);
+    bool CHECK_FILE_DEEP = params.getBoolFlag(ARG_CHECK_FILE_DEEP);
+    int STRU_MISSING = params.getIntFlag(ARG_STRU_MISSING);
+    string TPED_MISSING = params.getStringFlag(ARG_TPED_MISSING);
+    //bool ASD = params.getBoolFlag(ARG_CALC_ASD);
+    //bool FST = params.getBoolFlag(ARG_CALC_FST);
+    bool STRU = (filename.compare(DEFAULT_FILENAME) != 0);
+    bool TPED_AND_TFAM = (tped_filename.compare(DEFAULT_TPED_FILENAME) != 0 && tfam_filename.compare(DEFAULT_TFAM_FILENAME) != 0);
+    bool TPED_OR_TFAM = (tped_filename.compare(DEFAULT_TPED_FILENAME) != 0 || tfam_filename.compare(DEFAULT_TFAM_FILENAME) != 0);
+
+
+    if (nrows <= 0 && STRU)
     {
-      cerr << "Must specify only one type of data file to read, either stru or tped/tfam.\n";
-      quit = true;
+        cerr << "Number of chr must be > 0.\n";
+        quit = true;
     }
-  /*
-  if(!STRU && !TPED_AND_TFAM)
+    if (ncols <= 0 && STRU)
     {
-      cerr << "Must specify both tped and tfam (or use stru).\n";
-      quit = true;
+        cerr << "Number of loci must be > 0.\n";
+        quit = true;
     }
-  */
-  if((CHECK_FILE || CHECK_FILE_DEEP) && !STRU)
+    if (sort <= 0 && STRU)
     {
-      cerr << ARG_CHECK_FILE << " and " << ARG_CHECK_FILE_DEEP << " are not supported with tped/tfam files.\n";
-      quit = true;
+        cerr << "Column to sort by must be > 0.\n";
+        quit = true;
     }
-
-  if(quit) return -1;
-
-  bool FILE_STATUS_GOOD;
-  if((CHECK_FILE || CHECK_FILE_DEEP) && STRU)
+    if (ndcols < 0 && STRU)
     {
-      FILE_STATUS_GOOD = checkFile(params);
-      if(FILE_STATUS_GOOD) cerr << "File appears to be ok.\n";
-      return -1;
-    }  
-
-  igzstream fin,fin2;
-  structure_data data;
-  if(STRU)
-    {
-      fin.open(filename.c_str());
-      
-      if(fin.fail())
-	{
-	  cerr << "Could not open " << filename << " for reading.'n";
-	  return -1;
-	}
-      
-      /* if(ASD)*/ readData_ind_asd(fin,data,sort,ndcols,ndrows,nrows,ncols,STRU_MISSING);
+        cerr << "Non-data columns must be >= 0.\n";
+        quit = true;
     }
-  else
+    if (ndrows <= 0 && STRU)
     {
-      nrows = 0;
-      ncols = 0;
-      fin.open(tped_filename.c_str());
-      if(fin.fail())
-	{
-	  cerr << "Could not open " << tped_filename << " for reading.'n";
-	  return -1;
-	}
-
-      fin2.open(tfam_filename.c_str());
-      if(fin2.fail())
-	{
-	  cerr << "Could not open " << tfam_filename << " for reading.'n";
-	  return -1;
-	}      
-      /* if(ASD)*/ readData_ind_asd_tped_tfam(fin,fin2,data,nrows,ncols,TPED_MISSING);
-      nind = nrows/2;
+        cerr << "Non-data rows must be > 0.\n";
+        quit = true;
     }
-
-  DIST_MAT = new double*[nind];
-  for(int i = 0; i < nind;i++)
+    if (sort > ndcols && STRU)
     {
-      DIST_MAT[i] = new double[nind];
-      for(int j = 0; j < nind;j++) DIST_MAT[i][j] = 0;
+        cerr << "Must sort by a non-data column.\n";
+        quit = true;
     }
-
-  NUM_LOCI = new int*[nind];
-  for(int i = 0; i < nind;i++)
+    if (num_threads <= 0)
     {
-      NUM_LOCI[i] = new int[nind];
-      for(int j = 0; j < nind;j++) NUM_LOCI[i][j] = 0;
+        cerr << "Must have a positive number of threads.\n";
+        quit = true;
     }
-
-  if(CALC_ALL_IBS)
+    /*  if(num_threads > ncols)
+      {
+        cerr << "Number of threads must be < number of loci.\n";
+        quit = true;
+      }
+    */
+    if (PRINT_FULL && PRINT_FULL_LOG)
     {
-      IBS_0_MAT = new int*[nind];
-      for(int i = 0; i < nind;i++)
-	{
-	  IBS_0_MAT[i] = new int[nind];
-	  for(int j = 0; j < nind;j++) IBS_0_MAT[i][j] = 0;
-	}
-      IBS_1_MAT = new int*[nind];
-      for(int i = 0; i < nind;i++)
-	{
-	  IBS_1_MAT[i] = new int[nind];
-	  for(int j = 0; j < nind;j++) IBS_1_MAT[i][j] = 0;
-	}
-      IBS_2_MAT = new int*[nind];
-      for(int i = 0; i < nind;i++)
-	{
-	  IBS_2_MAT[i] = new int[nind];
-	  for(int j = 0; j < nind;j++) IBS_2_MAT[i][j] = 0;
-	}
-    }  
-
-  //data.nind = nrows/2;
-  if(num_threads > ncols) num_threads = ncols;
-  work_order_t *order;
-  unsigned long int *NUM_PER_THREAD = new unsigned long int[num_threads];
-  unsigned long int div = ncols/num_threads;
-
-  for(int i = 0; i < num_threads; i++)
+        cerr << "Must choose only one of --full, --full-log.\n";
+        quit = true;
+    }
+    if (!STRU && !TPED_AND_TFAM)
     {
-      NUM_PER_THREAD[i] = 0;
-      NUM_PER_THREAD[i] += div;
+        cerr << "Must specify a data file to read, either stru or tped/tfam.\n";
+        quit = true;
     }
 
-  for(int i = 0; i < ncols%num_threads;i++)
+    if (STRU && TPED_OR_TFAM)
     {
-      NUM_PER_THREAD[i]++;
+        cerr << "Must specify only one type of data file to read, either stru or tped/tfam.\n";
+        quit = true;
     }
- 
-  pthread_t *peer = new pthread_t[num_threads];
-  unsigned long int prev_index = 0;
-  for(int i = 0; i < num_threads; i++)
+    /*
+    if(!STRU && !TPED_AND_TFAM)
+      {
+        cerr << "Must specify both tped and tfam (or use stru).\n";
+        quit = true;
+      }
+    */
+    if ((CHECK_FILE || CHECK_FILE_DEEP) && !STRU)
     {
-      order = new work_order_t;
-      order->first_index = prev_index;
-      order->last_index = prev_index+NUM_PER_THREAD[i];
-      prev_index += NUM_PER_THREAD[i];
-      order->stru_data = &data;
-      order->CALC_ALL_IBS = CALC_ALL_IBS;
-      pthread_create(&(peer[i]),
-		     NULL,
-		     (void *(*)(void*))calc_pw_as_dist,
-		     (void *)order);
-      
+        cerr << ARG_CHECK_FILE << " and " << ARG_CHECK_FILE_DEEP << " are not supported with tped/tfam files.\n";
+        quit = true;
     }
 
+    if (quit) return -1;
 
-  for(int i = 0; i < num_threads; i++)
+    bool FILE_STATUS_GOOD;
+    if ((CHECK_FILE || CHECK_FILE_DEEP) && STRU)
     {
-      pthread_join(peer[i],NULL);
+        FILE_STATUS_GOOD = checkFile(params);
+        if (FILE_STATUS_GOOD) cerr << "File appears to be ok.\n";
+        return -1;
     }
 
-
-  for(int i = 0; i < nind;i++)
+    igzstream fin, fin2;
+    structure_data data;
+    if (STRU)
     {
-      for(int j = i; j < nind;j++)
-	{
-	  if (i==j)
-	    {
-	      DIST_MAT[i][j] = ncols+NUM_LOCI[i][j];
-	      //NUM_LOCI[i][j] = ncols+NUM_LOCI[i][j];
-	      if(CALC_ALL_IBS)
-		{
-		  IBS_0_MAT[i][j] = 0;
-		  IBS_1_MAT[i][j] = 0;
-		  IBS_2_MAT[i][j] = ncols+NUM_LOCI[i][j];
-		}
-	    }
-	  else
-	    {
-	      DIST_MAT[j][i] = DIST_MAT[i][j];
-	      NUM_LOCI[j][i] = NUM_LOCI[i][j];
-	      if(CALC_ALL_IBS)
-		{
-		  IBS_0_MAT[j][i] = IBS_0_MAT[i][j];
-		  IBS_1_MAT[j][i] = IBS_1_MAT[i][j];
-		  IBS_2_MAT[j][i] = IBS_2_MAT[i][j];
-		}
-	    }
-	}
+        fin.open(filename.c_str());
+
+        if (fin.fail())
+        {
+            cerr << "Could not open " << filename << " for reading.'n";
+            return -1;
+        }
+
+        /* if(ASD)*/ readData_ind_asd(fin, data, sort, ndcols, ndrows, nrows, ncols, STRU_MISSING);
+    }
+    else
+    {
+        nrows = 0;
+        ncols = 0;
+        /*
+        fin.open(tped_filename.c_str());
+        if (fin.fail())
+        {
+            cerr << "Could not open " << tped_filename << " for reading.'n";
+            return -1;
+        }
+
+        fin2.open(tfam_filename.c_str());
+        if (fin2.fail())
+        {
+            cerr << "Could not open " << tfam_filename << " for reading.'n";
+            return -1;
+        }
+        */
+        /* if(ASD)*/
+        try
+        {
+            readData_ind_asd_tped_tfam(tped_filename, tfam_filename, data, nrows, ncols, TPED_MISSING);
+        }
+        catch (...)
+        {
+            return -1;
+        }
+        nind = nrows / 2;
+    }
+
+    DIST_MAT = new double*[nind];
+    for (int i = 0; i < nind; i++)
+    {
+        DIST_MAT[i] = new double[nind];
+        for (int j = 0; j < nind; j++) DIST_MAT[i][j] = 0;
+    }
+
+    NUM_LOCI = new int *[nind];
+    for (int i = 0; i < nind; i++)
+    {
+        NUM_LOCI[i] = new int[nind];
+        for (int j = 0; j < nind; j++) NUM_LOCI[i][j] = 0;
+    }
+
+    if (CALC_ALL_IBS)
+    {
+        IBS_0_MAT = new int *[nind];
+        for (int i = 0; i < nind; i++)
+        {
+            IBS_0_MAT[i] = new int[nind];
+            for (int j = 0; j < nind; j++) IBS_0_MAT[i][j] = 0;
+        }
+        IBS_1_MAT = new int *[nind];
+        for (int i = 0; i < nind; i++)
+        {
+            IBS_1_MAT[i] = new int[nind];
+            for (int j = 0; j < nind; j++) IBS_1_MAT[i][j] = 0;
+        }
+        IBS_2_MAT = new int *[nind];
+        for (int i = 0; i < nind; i++)
+        {
+            IBS_2_MAT[i] = new int[nind];
+            for (int j = 0; j < nind; j++) IBS_2_MAT[i][j] = 0;
+        }
+    }
+
+    //data.nind = nrows/2;
+    if (num_threads > ncols) num_threads = ncols;
+    work_order_t *order;
+    unsigned long int *NUM_PER_THREAD = new unsigned long int[num_threads];
+    unsigned long int div = ncols / num_threads;
+
+    for (int i = 0; i < num_threads; i++)
+    {
+        NUM_PER_THREAD[i] = 0;
+        NUM_PER_THREAD[i] += div;
+    }
+
+    for (int i = 0; i < ncols % num_threads; i++)
+    {
+        NUM_PER_THREAD[i]++;
+    }
+
+    pthread_t *peer = new pthread_t[num_threads];
+    unsigned long int prev_index = 0;
+    for (int i = 0; i < num_threads; i++)
+    {
+        order = new work_order_t;
+        order->first_index = prev_index;
+        order->last_index = prev_index + NUM_PER_THREAD[i];
+        prev_index += NUM_PER_THREAD[i];
+        order->stru_data = &data;
+        order->CALC_ALL_IBS = CALC_ALL_IBS;
+        pthread_create(&(peer[i]),
+                       NULL,
+                       (void *(*)(void *))calc_pw_as_dist,
+                       (void *)order);
+
     }
 
 
-  //I should have checked if streams were threadsafe before I bothered with this
-  //But they aren't, or I missed something, so I join threads immediately after
-  //creating
-
-  ostream **out = new ostream*[4];
-  ofstream outfile_dist, outfile_ibs0, outfile_ibs1, outfile_ibs2;
-  if(outname.compare("outfile") == 0)
+    for (int i = 0; i < num_threads; i++)
     {
-      out[0] = &cout;
-      if(CALC_ALL_IBS)
-	{
-	  out[1] = &cout;
-	  out[2] = &cout;
-	  out[3] = &cout;
-	}
-    }
-  else
-    {
-      string dist_fname = outname+".dist";
-      outfile_dist.open(dist_fname.c_str());
-      out[0] = &outfile_dist;
-      if(CALC_ALL_IBS)
-	{
-	  string ibs0_fname = outname+".ibs0";
-	  string ibs1_fname = outname+".ibs1";
-	  string ibs2_fname = outname+".ibs2";
-	  outfile_ibs0.open(ibs0_fname.c_str());
-	  out[1] = &outfile_ibs0;
-	  outfile_ibs1.open(ibs1_fname.c_str());
-	  out[2] = &outfile_ibs1;
-	  outfile_ibs2.open(ibs2_fname.c_str());
-	  out[3] = &outfile_ibs2;
-	}
+        pthread_join(peer[i], NULL);
     }
 
-  pthread_t output_peer;
-  output_order_t **output_order = new output_order_t*[4];
-  string types[4] = {"dist","ibs0","ibs1","ibs2"};
- 
 
-  for(int i = 0; i < 4; i ++)
+    for (int i = 0; i < nind; i++)
     {
-      output_order[i] = new output_order_t;
-      output_order[i]->PRINT_FULL = PRINT_FULL;
-      output_order[i]->PRINT_FULL_LOG = PRINT_FULL_LOG;
-      output_order[i]->ind_names = data.ind_names;
-      output_order[i]->ncols = ncols;
-      output_order[i]->nind = nind;
+        for (int j = i; j < nind; j++)
+        {
+            if (i == j)
+            {
+                DIST_MAT[i][j] = ncols + NUM_LOCI[i][j];
+                //NUM_LOCI[i][j] = ncols+NUM_LOCI[i][j];
+                if (CALC_ALL_IBS)
+                {
+                    IBS_0_MAT[i][j] = 0;
+                    IBS_1_MAT[i][j] = 0;
+                    IBS_2_MAT[i][j] = ncols + NUM_LOCI[i][j];
+                }
+            }
+            else
+            {
+                DIST_MAT[j][i] = DIST_MAT[i][j];
+                NUM_LOCI[j][i] = NUM_LOCI[i][j];
+                if (CALC_ALL_IBS)
+                {
+                    IBS_0_MAT[j][i] = IBS_0_MAT[i][j];
+                    IBS_1_MAT[j][i] = IBS_1_MAT[i][j];
+                    IBS_2_MAT[j][i] = IBS_2_MAT[i][j];
+                }
+            }
+        }
     }
- 
-  
-  for(int i = 0; i < 4; i++)
+
+
+    //I should have checked if streams were threadsafe before I bothered with this
+    //But they aren't, or I missed something, so I join threads immediately after
+    //creating
+
+    ostream **out = new ostream*[4];
+    ofstream outfile_dist, outfile_ibs0, outfile_ibs1, outfile_ibs2;
+    if (outname.compare("outfile") == 0)
     {
-      if(i > 0 && !CALC_ALL_IBS) continue;
-      output_order[i]->out = out[i];
-      output_order[i]->type = types[i];
-      pthread_create(&(output_peer),
-		     NULL,
-		     (void *(*)(void*))output,
-		     (void *)output_order[i]);
-      //join after create because this was all useless
-      pthread_join(output_peer,NULL);
+        out[0] = &cout;
+        if (CALC_ALL_IBS)
+        {
+            out[1] = &cout;
+            out[2] = &cout;
+            out[3] = &cout;
+        }
     }
- 
-
-  delete [] NUM_PER_THREAD;
-  delete [] peer;
-  //delete [] data.locus_names;
-
-  for(int i = 0; i < 4; i++)
+    else
     {
-      delete output_order[i];
+        string dist_fname = outname + ".dist";
+        outfile_dist.open(dist_fname.c_str());
+        out[0] = &outfile_dist;
+        if (CALC_ALL_IBS)
+        {
+            string ibs0_fname = outname + ".ibs0";
+            string ibs1_fname = outname + ".ibs1";
+            string ibs2_fname = outname + ".ibs2";
+            outfile_ibs0.open(ibs0_fname.c_str());
+            out[1] = &outfile_ibs0;
+            outfile_ibs1.open(ibs1_fname.c_str());
+            out[2] = &outfile_ibs1;
+            outfile_ibs2.open(ibs2_fname.c_str());
+            out[3] = &outfile_ibs2;
+        }
     }
-  delete [] output_order;
 
-  return 0;
+    pthread_t output_peer;
+    output_order_t **output_order = new output_order_t *[4];
+    string types[4] = {"dist", "ibs0", "ibs1", "ibs2"};
+
+
+    for (int i = 0; i < 4; i ++)
+    {
+        output_order[i] = new output_order_t;
+        output_order[i]->PRINT_FULL = PRINT_FULL;
+        output_order[i]->PRINT_FULL_LOG = PRINT_FULL_LOG;
+        output_order[i]->ind_names = data.ind_names;
+        output_order[i]->ncols = ncols;
+        output_order[i]->nind = nind;
+    }
+
+
+    for (int i = 0; i < 4; i++)
+    {
+        if (i > 0 && !CALC_ALL_IBS) continue;
+        output_order[i]->out = out[i];
+        output_order[i]->type = types[i];
+        pthread_create(&(output_peer),
+                       NULL,
+                       (void *(*)(void *))output,
+                       (void *)output_order[i]);
+        //join after create because this was all useless
+        pthread_join(output_peer, NULL);
+    }
+
+
+    delete [] NUM_PER_THREAD;
+    delete [] peer;
+    //delete [] data.locus_names;
+
+    for (int i = 0; i < 4; i++)
+    {
+        delete output_order[i];
+    }
+    delete [] output_order;
+
+    return 0;
 }
 
 
-bool readData_Check(igzstream &fin,structure_data &data,
-	      int sort, int ndcols, int ndrows, 
-	      int nrows, int ncols)
+bool readData_Check(igzstream &fin, structure_data &data,
+                    int sort, int ndcols, int ndrows,
+                    int nrows, int ncols)
 {
-  bool FILE_STATUS = true;
+    bool FILE_STATUS = true;
 
-  string line;
-  int nind = nrows/2;
-  data.nind = nind;
-  data.data = new short*[nind];
-  data.ind_names = new string[nind];
+    string line;
+    int nind = nrows / 2;
+    data.nind = nind;
+    data.data = new short*[nind];
+    data.ind_names = new string[nind];
 
-  for (int i = 0; i < nind; i++)
+    for (int i = 0; i < nind; i++)
     {
-      data.ind_names[i] = EMPTY_STRING;
+        data.ind_names[i] = EMPTY_STRING;
     }
 
-  getline(fin,line);
-  int size;
-  data.locus_names = split_str_str(size,line.c_str(),DEL);
+    getline(fin, line);
+    int size;
+    data.locus_names = split_str_str(size, line.c_str(), DEL);
 
-  size = ncols;
-  data.nloci = size;
+    size = ncols;
+    data.nloci = size;
 
-  for(int i = 1; i < ndrows;i++)
+    for (int i = 1; i < ndrows; i++)
     {
-      getline(fin,line);
+        getline(fin, line);
     }
 
-  string key;
-  string field;
-  short int *tmp;
-  //int **block;
-  //double *block;
-  short tmp_dbl;
-  int index;
+    string key;
+    string field;
+    short int *tmp;
+    //int **block;
+    //double *block;
+    short tmp_dbl;
+    int index;
 
 
-  short *ind_count = new short[nind];
+    short *ind_count = new short[nind];
 
-  for(int i = 0; i < nind; i++) ind_count[i] = 0;
+    for (int i = 0; i < nind; i++) ind_count[i] = 0;
 
-  for(int row = 0; row < nrows;row++)
+    for (int row = 0; row < nrows; row++)
     {
-      tmp = NULL;
-      //block = NULL;
-      for(int i = 1; i <= ndcols; i++)
-	{
-	  fin >> field;
-	  if(i == sort) key = field;
-	}
+        tmp = NULL;
+        //block = NULL;
+        for (int i = 1; i <= ndcols; i++)
+        {
+            fin >> field;
+            if (i == sort) key = field;
+        }
 
-      index = search(data.ind_names,nind,key);
-      tmp = split_int(fin,ncols);
+        index = search(data.ind_names, nind, key);
+        tmp = split_int(fin, ncols);
 
-      if(index >= 0)
-	{
-	  ind_count[index]++;
+        if (index >= 0)
+        {
+            ind_count[index]++;
 
-	  if(ind_count[index] > 2)
-	    {
-	       FILE_STATUS &= false;
-	       cerr << "Individual " << key << " seen "
-		    << ind_count[index] << "times.\n";
-	    }
+            if (ind_count[index] > 2)
+            {
+                FILE_STATUS &= false;
+                cerr << "Individual " << key << " seen "
+                     << ind_count[index] << "times.\n";
+            }
 
-	  for(int i = 0; i < size; i++)
-	    {
+            for (int i = 0; i < size; i++)
+            {
 
-	      if(tmp[i] != 1 && tmp[i] != 0 && tmp[i] != -9)
-		{
-		  FILE_STATUS &= false;
-		  cerr << "LINE " << row + ndrows << " COL "
-		       << i+ndcols << ": Allele '" << tmp[i] 
-		       << "' is not 0/1/-9.\n";
-		}
-	    }
-	}
-      else
-	{
-	  index = put(data.ind_names,nind,key);
-	  if(index > nind-1)
-	    {
-	      cerr << "Found more than " << nind << " individuals.";
-	      exit(-1);
-	    }
-	  ind_count[index]++;
+                if (tmp[i] != 1 && tmp[i] != 0 && tmp[i] != -9)
+                {
+                    FILE_STATUS &= false;
+                    cerr << "LINE " << row + ndrows << " COL "
+                         << i + ndcols << ": Allele '" << tmp[i]
+                         << "' is not 0/1/-9.\n";
+                }
+            }
+        }
+        else
+        {
+            index = put(data.ind_names, nind, key);
+            if (index > nind - 1)
+            {
+                cerr << "Found more than " << nind << " individuals.";
+                exit(-1);
+            }
+            ind_count[index]++;
 
-	  for(int i = 0; i < size; i++)
-	    {
-	      if(tmp[i] != 1 && tmp[i] != 0 && tmp[i] != -9)
-		{
-		  FILE_STATUS &= false;
-		  cerr << "LINE " << row + ndrows << " COL "
-		       << i << ": Allele " << tmp[i] << " is not 0/1/-9.\n";
-		}
-	    }
-	}
-      delete [] tmp;
+            for (int i = 0; i < size; i++)
+            {
+                if (tmp[i] != 1 && tmp[i] != 0 && tmp[i] != -9)
+                {
+                    FILE_STATUS &= false;
+                    cerr << "LINE " << row + ndrows << " COL "
+                         << i << ": Allele " << tmp[i] << " is not 0/1/-9.\n";
+                }
+            }
+        }
+        delete [] tmp;
     }
 
-  return FILE_STATUS;
+    return FILE_STATUS;
 }
 
-bool checkFile(param_t& params)
+bool checkFile(param_t &params)
 {
 
-  string outname = params.getStringFlag(ARG_IBS_OUT);
-  string filename = params.getStringFlag(ARG_FILENAME);
-  int nrows = params.getIntFlag(ARG_NROWS);
-  int ndrows = params.getIntFlag(ARG_NDROWS);
-  int ncols = params.getIntFlag(ARG_NCOLS);
-  int ndcols = params.getIntFlag(ARG_NDCOLS);
-  int sort = params.getIntFlag(ARG_SORT);
-  int num_threads = params.getIntFlag(ARG_THREAD);
-  int nind = nrows/2;
-  bool PRINT_FULL = params.getBoolFlag(ARG_FULL);
-  bool PRINT_FULL_LOG = params.getBoolFlag(ARG_FULL_LOG);
-  bool quit = false;
-  bool CALC_ALL_IBS = params.getBoolFlag(ARG_CALC_IBS);
-  bool CHECK_FILE = params.getBoolFlag(ARG_CHECK_FILE);
-  bool CHECK_FILE_DEEP = params.getBoolFlag(ARG_CHECK_FILE_DEEP);
-  bool FILE_STATUS = true;
+    string outname = params.getStringFlag(ARG_IBS_OUT);
+    string filename = params.getStringFlag(ARG_FILENAME);
+    int nrows = params.getIntFlag(ARG_NROWS);
+    int ndrows = params.getIntFlag(ARG_NDROWS);
+    int ncols = params.getIntFlag(ARG_NCOLS);
+    int ndcols = params.getIntFlag(ARG_NDCOLS);
+    int sort = params.getIntFlag(ARG_SORT);
+    int num_threads = params.getIntFlag(ARG_THREAD);
+    int nind = nrows / 2;
+    bool PRINT_FULL = params.getBoolFlag(ARG_FULL);
+    bool PRINT_FULL_LOG = params.getBoolFlag(ARG_FULL_LOG);
+    bool quit = false;
+    bool CALC_ALL_IBS = params.getBoolFlag(ARG_CALC_IBS);
+    bool CHECK_FILE = params.getBoolFlag(ARG_CHECK_FILE);
+    bool CHECK_FILE_DEEP = params.getBoolFlag(ARG_CHECK_FILE_DEEP);
+    bool FILE_STATUS = true;
 
-  igzstream fin;
-  fin.open(filename.c_str());
-  
-  if(fin.fail())
-    {
-      cerr << "Could not open " << filename << " for reading.'n";
-      return 0;
-    }
-  
-  string junk;
-  int fields;
-  int counter = 1;
-  int ndr_counter = ndrows;
-  int obs_cols;
-  int obs_rows = 0;
-  do
-    {
-      getline(fin,junk);
-      fields = countFields(junk);
-      if(fields == 0 && counter < nrows+ndrows)
-	{
-	  FILE_STATUS &= false;
-	  cerr << "LINE " << counter << ": "
-	       << "Blank line found.\n";
-	}
-      else if(fields == 0)
-	{
-	}
-      else if(ndr_counter > 0)
-	{
-	  if(counter == 1)
-	    {
-	      obs_cols = fields;
-	      if(obs_cols != ncols)
-		{
-		  FILE_STATUS &= false;
-		  cerr << "LINE " << counter << ": ";
-		  cerr << "Found " << obs_cols << " loci. Expected " 
-		       << ncols << ".\n";;
-		}
-	    }
-	  else
-	    {
-	      if(fields != ncols)
-		{
-		  FILE_STATUS &= false;
-		  cerr << "LINE " << counter << ": ";
-		  cerr << "Found " << fields << " fields in an assumed "
-		       << "header row. Expected " << ncols << ".\n";;
-		}
-	    }
-	  ndr_counter--;
-	}
-      else
-	{
-	  if(fields-ncols != ndcols)
-	    {
-	      FILE_STATUS &= false;
-	      cerr << "LINE " << counter << ": ";
-	      cerr << "Found " << fields << " fields. Expected " 
-		   << ndcols << " headers + " 
-		   << ncols << " data = " 
-		   << ndcols+ncols << " fields.\n";
-	    }
-	  obs_rows++;
-	}
-      
-      counter++;
-    } while(fin.good());
+    igzstream fin;
+    fin.open(filename.c_str());
 
-  if(obs_rows != nrows)
+    if (fin.fail())
     {
-      FILE_STATUS &= false;
-      cerr << "Found " << obs_rows << " lines of data. "
-	   << "Expected " << nrows << ".\n";
+        cerr << "Could not open " << filename << " for reading.'n";
+        return 0;
     }
 
-  fin.close();
-
-  //Instead of reopening file, we can just seekg() back to the beginning.
-  //Change this at some point.
-
-  short** data;
-  
-  if(FILE_STATUS && CHECK_FILE_DEEP)
+    string junk;
+    int fields;
+    int counter = 1;
+    int ndr_counter = ndrows;
+    int obs_cols;
+    int obs_rows = 0;
+    do
     {
-      fin.open(filename.c_str());
-      structure_data data;
-      FILE_STATUS &= readData_Check(fin,data,sort,ndcols,ndrows,nrows,ncols);
-      fin.close();
+        getline(fin, junk);
+        fields = countFields(junk);
+        if (fields == 0 && counter < nrows + ndrows)
+        {
+            FILE_STATUS &= false;
+            cerr << "LINE " << counter << ": "
+                 << "Blank line found.\n";
+        }
+        else if (fields == 0)
+        {
+        }
+        else if (ndr_counter > 0)
+        {
+            if (counter == 1)
+            {
+                obs_cols = fields;
+                if (obs_cols != ncols)
+                {
+                    FILE_STATUS &= false;
+                    cerr << "LINE " << counter << ": ";
+                    cerr << "Found " << obs_cols << " loci. Expected "
+                         << ncols << ".\n";;
+                }
+            }
+            else
+            {
+                if (fields != ncols)
+                {
+                    FILE_STATUS &= false;
+                    cerr << "LINE " << counter << ": ";
+                    cerr << "Found " << fields << " fields in an assumed "
+                         << "header row. Expected " << ncols << ".\n";;
+                }
+            }
+            ndr_counter--;
+        }
+        else
+        {
+            if (fields - ncols != ndcols)
+            {
+                FILE_STATUS &= false;
+                cerr << "LINE " << counter << ": ";
+                cerr << "Found " << fields << " fields. Expected "
+                     << ndcols << " headers + "
+                     << ncols << " data = "
+                     << ndcols + ncols << " fields.\n";
+            }
+            obs_rows++;
+        }
+
+        counter++;
+    }
+    while (fin.good());
+
+    if (obs_rows != nrows)
+    {
+        FILE_STATUS &= false;
+        cerr << "Found " << obs_rows << " lines of data. "
+             << "Expected " << nrows << ".\n";
+    }
+
+    fin.close();
+
+    short **data;
+
+    if (FILE_STATUS && CHECK_FILE_DEEP)
+    {
+        fin.open(filename.c_str());
+        structure_data data;
+        FILE_STATUS &= readData_Check(fin, data, sort, ndcols, ndrows, nrows, ncols);
+        fin.close();
     }
 
 
-  return FILE_STATUS;
+    return FILE_STATUS;
 }
 
 
 int countFields(string str)
 {
-  string::iterator it;
-  bool inword = false;
-  bool space = false;
-  int counter = 0;
-  for ( it=str.begin() ; it < str.end(); it++ )
+    string::iterator it;
+    bool inword = false;
+    bool space = false;
+    int counter = 0;
+    for ( it = str.begin() ; it < str.end(); it++ )
     {
-      space = isspace(*it);
-      if(!inword && !space)
-	{
-	  inword = true;
-	  counter++;
-	}
-      else if(inword && space)
-	{
-	  inword = false;
-	}
+        space = isspace(*it);
+        if (!inword && !space)
+        {
+            inword = true;
+            counter++;
+        }
+        else if (inword && space)
+        {
+            inword = false;
+        }
     }
 
-  return counter;
+    return counter;
 }
 
 
 //Yes, this is really dumb for a lot of reasons.
 void output(void *order)
 {
-  output_order_t *p = (output_order_t*)order;
-  ostream *out = p->out;
-  bool PRINT_FULL = p->PRINT_FULL;
-  bool PRINT_FULL_LOG = p->PRINT_FULL_LOG;
-  string *ind_names = p->ind_names;
-  int ncols = p->ncols;
-  string type = p->type;
-  int nind = p->nind;
+    output_order_t *p = (output_order_t *)order;
+    ostream *out = p->out;
+    bool PRINT_FULL = p->PRINT_FULL;
+    bool PRINT_FULL_LOG = p->PRINT_FULL_LOG;
+    string *ind_names = p->ind_names;
+    int ncols = p->ncols;
+    string type = p->type;
+    int nind = p->nind;
 
-  if(type.compare("dist") == 0)
+    if (type.compare("dist") == 0)
     {
-      if(!PRINT_FULL && !PRINT_FULL_LOG)
-	{
-	  for(int i = 0; i < nind;i++)
-	    {
-	      for(int j = 0; j < nind;j++)
-		{
-		  *out << double(ncols)+double(NUM_LOCI[i][j]) << " ";   
-		}
-	      *out << endl;
-	    }
-	  *out << endl;
-	}
-      
-      for (int i = 0; i < nind; i++)
-	{
-	  *out << ind_names[i] << " ";
-	}
-      *out << endl;
-      
-      for(int i = 0; i < nind; i++)
-	{
-	  *out << ind_names[i] << " ";
-	  for (int j = 0; j < nind ; j++)
-	    {
-	      if(PRINT_FULL_LOG)
-		{
-		  *out << 0-log(double(DIST_MAT[i][j]) / 
-				     (double(ncols)+double(NUM_LOCI[i][j]))) 
-			    << " ";
-		}
-	      else if(PRINT_FULL)
-		{
-		  *out << 1-(double(DIST_MAT[i][j]) / 
-				  (double(ncols)+double(NUM_LOCI[i][j]))) 
-			    << " ";
-		}		  
-	      else *out << DIST_MAT[i][j] << " ";
-	    }
-	  *out << endl;
-	}
-    }
-  else if(type.compare("ibs0") == 0)
-    {
-      if(!PRINT_FULL && !PRINT_FULL_LOG)
-	{
-	  for(int i = 0; i < nind;i++)
-	    {
-	      for(int j = 0; j < nind;j++)
-		{
-		  *out << double(ncols)+double(NUM_LOCI[i][j]) << " ";   
-		}
-	      *out << endl;
-	    }
-	  *out << endl;
-	}
-      
-      for (int i = 0; i < nind; i++)
-	{
-	  *out << ind_names[i] << " ";
-	}
-      *out << endl;
-      
-      for(int i = 0; i < nind; i++)
-	{
-	  *out << ind_names[i] << " ";
-	  for (int j = 0; j < nind ; j++)
-	    {
-	      if(PRINT_FULL_LOG || PRINT_FULL)
-		{
-		  *out << double(IBS_0_MAT[i][j])/
-		    (double(ncols)+double(NUM_LOCI[i][j]))<< " ";
-		}
-	      else *out << IBS_0_MAT[i][j] << " ";
+        if (!PRINT_FULL && !PRINT_FULL_LOG)
+        {
+            for (int i = 0; i < nind; i++)
+            {
+                for (int j = 0; j < nind; j++)
+                {
+                    *out << double(ncols) + double(NUM_LOCI[i][j]) << " ";
+                }
+                *out << endl;
+            }
+            *out << endl;
+        }
 
-	    }
-	  *out << endl;
-	}
+        for (int i = 0; i < nind; i++)
+        {
+            *out << ind_names[i] << " ";
+        }
+        *out << endl;
+
+        for (int i = 0; i < nind; i++)
+        {
+            *out << ind_names[i] << " ";
+            for (int j = 0; j < nind ; j++)
+            {
+                if (PRINT_FULL_LOG)
+                {
+                    *out << 0 - log(double(DIST_MAT[i][j]) /
+                                    (double(ncols) + double(NUM_LOCI[i][j])))
+                         << " ";
+                }
+                else if (PRINT_FULL)
+                {
+                    *out << 1 - (double(DIST_MAT[i][j]) /
+                                 (double(ncols) + double(NUM_LOCI[i][j])))
+                         << " ";
+                }
+                else *out << DIST_MAT[i][j] << " ";
+            }
+            *out << endl;
+        }
     }
-  else if(type.compare("ibs1") == 0)
+    else if (type.compare("ibs0") == 0)
     {
-      if(!PRINT_FULL && !PRINT_FULL_LOG)
-	{
-	  for(int i = 0; i < nind;i++)
-	    {
-	      for(int j = 0; j < nind;j++)
-		{
-		  *out << double(ncols)+double(NUM_LOCI[i][j]) << " ";   
-		}
-	      *out << endl;
-	    }
-	  *out << endl;
-	}
-      
-      for (int i = 0; i < nind; i++)
-	{
-	  *out << ind_names[i] << " ";
-	}
-      *out << endl;
-      
-      for(int i = 0; i < nind; i++)
-	{
-	  *out << ind_names[i] << " ";
-	  for (int j = 0; j < nind ; j++)
-	    {
-	      if(PRINT_FULL_LOG || PRINT_FULL)
-		{
-		  *out << double(IBS_1_MAT[i][j])/
-		    (double(ncols)+double(NUM_LOCI[i][j]))<< " ";
-		}
-	      else *out << IBS_1_MAT[i][j] << " ";
-	      
-	    }
-	  *out << endl;
-	}
+        if (!PRINT_FULL && !PRINT_FULL_LOG)
+        {
+            for (int i = 0; i < nind; i++)
+            {
+                for (int j = 0; j < nind; j++)
+                {
+                    *out << double(ncols) + double(NUM_LOCI[i][j]) << " ";
+                }
+                *out << endl;
+            }
+            *out << endl;
+        }
+
+        for (int i = 0; i < nind; i++)
+        {
+            *out << ind_names[i] << " ";
+        }
+        *out << endl;
+
+        for (int i = 0; i < nind; i++)
+        {
+            *out << ind_names[i] << " ";
+            for (int j = 0; j < nind ; j++)
+            {
+                if (PRINT_FULL_LOG || PRINT_FULL)
+                {
+                    *out << double(IBS_0_MAT[i][j]) /
+                         (double(ncols) + double(NUM_LOCI[i][j])) << " ";
+                }
+                else *out << IBS_0_MAT[i][j] << " ";
+
+            }
+            *out << endl;
+        }
     }
-  else if(type.compare("ibs2") == 0)
+    else if (type.compare("ibs1") == 0)
     {
-      if(!PRINT_FULL && !PRINT_FULL_LOG)
-	{
-	  for(int i = 0; i < nind;i++)
-	    {
-	      for(int j = 0; j < nind;j++)
-		{
-		  *out << double(ncols)+double(NUM_LOCI[i][j]) << " ";   
-		}
-	      *out << endl;
-	    }
-	  *out << endl;
-	}
-      
-      for (int i = 0; i < nind; i++)
-	{
-	  *out << ind_names[i] << " ";
-	}
-      *out << endl;
-      
-      for(int i = 0; i < nind; i++)
-	{
-	  *out << ind_names[i] << " ";
-	  for (int j = 0; j < nind ; j++)
-	    {
-	      if(PRINT_FULL_LOG || PRINT_FULL)
-		{
-		  *out << double(IBS_2_MAT[i][j])/
-		    (double(ncols)+double(NUM_LOCI[i][j]))<< " ";
-		}
-	      else *out << IBS_2_MAT[i][j] << " ";
-	      
-	    }
-	  *out << endl;
-	}
+        if (!PRINT_FULL && !PRINT_FULL_LOG)
+        {
+            for (int i = 0; i < nind; i++)
+            {
+                for (int j = 0; j < nind; j++)
+                {
+                    *out << double(ncols) + double(NUM_LOCI[i][j]) << " ";
+                }
+                *out << endl;
+            }
+            *out << endl;
+        }
+
+        for (int i = 0; i < nind; i++)
+        {
+            *out << ind_names[i] << " ";
+        }
+        *out << endl;
+
+        for (int i = 0; i < nind; i++)
+        {
+            *out << ind_names[i] << " ";
+            for (int j = 0; j < nind ; j++)
+            {
+                if (PRINT_FULL_LOG || PRINT_FULL)
+                {
+                    *out << double(IBS_1_MAT[i][j]) /
+                         (double(ncols) + double(NUM_LOCI[i][j])) << " ";
+                }
+                else *out << IBS_1_MAT[i][j] << " ";
+
+            }
+            *out << endl;
+        }
     }
-  else
+    else if (type.compare("ibs2") == 0)
     {
-      cerr << "UNKNOWN TYPE: " << type << endl;
-      exit(-1);
+        if (!PRINT_FULL && !PRINT_FULL_LOG)
+        {
+            for (int i = 0; i < nind; i++)
+            {
+                for (int j = 0; j < nind; j++)
+                {
+                    *out << double(ncols) + double(NUM_LOCI[i][j]) << " ";
+                }
+                *out << endl;
+            }
+            *out << endl;
+        }
+
+        for (int i = 0; i < nind; i++)
+        {
+            *out << ind_names[i] << " ";
+        }
+        *out << endl;
+
+        for (int i = 0; i < nind; i++)
+        {
+            *out << ind_names[i] << " ";
+            for (int j = 0; j < nind ; j++)
+            {
+                if (PRINT_FULL_LOG || PRINT_FULL)
+                {
+                    *out << double(IBS_2_MAT[i][j]) /
+                         (double(ncols) + double(NUM_LOCI[i][j])) << " ";
+                }
+                else *out << IBS_2_MAT[i][j] << " ";
+
+            }
+            *out << endl;
+        }
     }
-  return;
+    else
+    {
+        cerr << "UNKNOWN TYPE: " << type << endl;
+        exit(-1);
+    }
+    return;
 }
 
-void calc_pw_as_dist(void* order)
+void calc_pw_as_dist(void *order)
 {
-  work_order_t *p = (work_order_t*)order;
-  //map<string,double*>::iterator key;
-  //map<string,double*> *data = p->stru_data->data;
-  short **data = p->stru_data->data;
-  int size = p->stru_data->nind;
-  //string *key_list = new string[size];
-  //int i = 0;
-  /*
-  for (key = data->begin(); key != data->end(); key++)
+    work_order_t *p = (work_order_t *)order;
+    //map<string,double*>::iterator key;
+    //map<string,double*> *data = p->stru_data->data;
+    short **data = p->stru_data->data;
+    int size = p->stru_data->nind;
+    //string *key_list = new string[size];
+    //int i = 0;
+    /*
+    for (key = data->begin(); key != data->end(); key++)
+      {
+        key_list[i] = (*key).first;
+        i++;
+      }
+    */
+    short A, B;
+
+    double ps;
+    double *row = NULL;
+    int *num_loci = NULL;
+    int *ibs0 = NULL;
+    int *ibs1 = NULL;
+    int *ibs2 = NULL;
+    for (int j = 0; j < size; j++)
     {
-      key_list[i] = (*key).first;
-      i++;
-    }
-  */
-  short A, B;
+        row = new double[size - j];
+        num_loci = new int[size - j];
+        if (p->CALC_ALL_IBS)
+        {
+            ibs0 = new int[size - j];
+            ibs1 = new int[size - j];
+            ibs2 = new int[size - j];
+        }
+        for (int k = j; k < size; k++)
+        {
+            row[k - j] = 0;
+            num_loci[k - j] = 0;
+            if (p->CALC_ALL_IBS)
+            {
+                ibs0[k - j] = 0;
+                ibs1[k - j] = 0;
+                ibs2[k - j] = 0;
+            }
+            for (int l = p->first_index; l < p->last_index; l++)
+            {
+                if (j == k)
+                {
+                    A = data[j][l];
+                    //B = data[k][l];
+                    if (A < 0 /*|| B < 0*/)
+                    {
+                        num_loci[k - j]--;
+                    }
+                }
+                else
+                {
+                    A = data[j][l];
+                    B = data[k][l];
+                    if (A < 0 || B < 0)
+                    {
+                        num_loci[k - j]--;
+                    }
+                    else
+                    {
+                        ps = proportion_shared(A, B);
+                        row[k - j] += ps;
+                        if (p->CALC_ALL_IBS)
+                        {
+                            if (ps == 1) ibs2[k - j]++;
+                            if (ps == 0.5) ibs1[k - j]++;
+                            if (ps == 0) ibs0[k - j]++;
+                        }
+                    }
+                }
+            }
+        }
 
-  double ps;
-  double* row = NULL;
-  int* num_loci = NULL;
-  int* ibs0 = NULL;
-  int* ibs1 = NULL;
-  int* ibs2 = NULL;
-  for(int j = 0; j < size; j++)
-    {
-      row = new double[size-j];
-      num_loci = new int[size-j];
-      if(p->CALC_ALL_IBS)
-	{
-	  ibs0 = new int[size-j];
-	  ibs1 = new int[size-j];
-	  ibs2 = new int[size-j];
-	}
-      for(int k = j; k < size; k++)
-	{
-	  row[k-j]=0;
-	  num_loci[k-j]=0;
-	  if(p->CALC_ALL_IBS)
-	    {
-	      ibs0[k-j]=0;
-	      ibs1[k-j]=0;
-	      ibs2[k-j]=0;
-	    }
-	  for(int l = p->first_index; l < p->last_index;l++)
-	    {
-	      if(j==k)
-		{
-		  A = data[j][l];
-		  //B = data[k][l];
-		  if(A < 0 /*|| B < 0*/)
-		    {
-		      num_loci[k-j]--;
-		    }
-		}
-	      else
-		{
-		  A = data[j][l];
-		  B = data[k][l];
-		  if(A < 0 || B < 0)
-		    {
-		      num_loci[k-j]--;
-		    }
-		  else
-		    {
-		      ps = proportion_shared(A,B);
-		      row[k-j]+=ps;
-		      if(p->CALC_ALL_IBS)
-			{
-			  if(ps == 1) ibs2[k-j]++;
-			  if(ps == 0.5) ibs1[k-j]++;
-			  if(ps == 0) ibs0[k-j]++;
-			}
-		    }
-		}
-	    }
-	}
-     
-      pthread_mutex_lock(&mutex_dist_mat);
-      for(int m = j; m < size; m++)  DIST_MAT[j][m]+=double(row[m-j]);
-      pthread_mutex_unlock(&mutex_dist_mat);
-      
-      pthread_mutex_lock(&mutex_loci_mat);
-      for(int m = j; m < size; m++)  NUM_LOCI[j][m]+=num_loci[m-j];
-      pthread_mutex_unlock(&mutex_loci_mat);
+        pthread_mutex_lock(&mutex_dist_mat);
+        for (int m = j; m < size; m++)  DIST_MAT[j][m] += double(row[m - j]);
+        pthread_mutex_unlock(&mutex_dist_mat);
 
-      if(p->CALC_ALL_IBS)
-	{
-	  pthread_mutex_lock(&mutex_ibs_0);
-	  for(int m = j; m < size; m++)  IBS_0_MAT[j][m]+=ibs0[m-j];
-	  pthread_mutex_unlock(&mutex_ibs_0);
-	  
-	  pthread_mutex_lock(&mutex_ibs_1);
-	  for(int m = j; m < size; m++)  IBS_1_MAT[j][m]+=ibs1[m-j];
-	  pthread_mutex_unlock(&mutex_ibs_1);
-	  
-	  pthread_mutex_lock(&mutex_ibs_2);
-	  for(int m = j; m < size; m++)  IBS_2_MAT[j][m]+=ibs2[m-j];
-	  pthread_mutex_unlock(&mutex_ibs_2);
-	}
+        pthread_mutex_lock(&mutex_loci_mat);
+        for (int m = j; m < size; m++)  NUM_LOCI[j][m] += num_loci[m - j];
+        pthread_mutex_unlock(&mutex_loci_mat);
 
-      delete [] num_loci;
-      delete [] row;
-      if(p->CALC_ALL_IBS)
-	{
-	  delete [] ibs0;
-	  delete [] ibs1;
-	  delete [] ibs2;
-	}
+        if (p->CALC_ALL_IBS)
+        {
+            pthread_mutex_lock(&mutex_ibs_0);
+            for (int m = j; m < size; m++)  IBS_0_MAT[j][m] += ibs0[m - j];
+            pthread_mutex_unlock(&mutex_ibs_0);
+
+            pthread_mutex_lock(&mutex_ibs_1);
+            for (int m = j; m < size; m++)  IBS_1_MAT[j][m] += ibs1[m - j];
+            pthread_mutex_unlock(&mutex_ibs_1);
+
+            pthread_mutex_lock(&mutex_ibs_2);
+            for (int m = j; m < size; m++)  IBS_2_MAT[j][m] += ibs2[m - j];
+            pthread_mutex_unlock(&mutex_ibs_2);
+        }
+
+        delete [] num_loci;
+        delete [] row;
+        if (p->CALC_ALL_IBS)
+        {
+            delete [] ibs0;
+            delete [] ibs1;
+            delete [] ibs2;
+        }
     }
 
-  //delete [] key_list;
-  delete p;
-  return;
+    //delete [] key_list;
+    delete p;
+    return;
 
 }
 
 double proportion_shared(short A, short B)
 {
-  if(abs(A - B) == 0) return 1;
-  if(abs(A - B) == 1) return 0.5;
-  return 0;
+    if (abs(A - B) == 0) return 1;
+    if (abs(A - B) == 1) return 0.5;
+    return 0;
 }
 
-void readData_ind_asd(igzstream &fin,structure_data &data,
-	      int sort, int ndcols, int ndrows, 
-		      int nrows, int ncols, int STRU_MISSING)
+void readData_ind_asd(igzstream &fin, structure_data &data,
+                      int sort, int ndcols, int ndrows,
+                      int nrows, int ncols, int STRU_MISSING)
 {
-  string line;
-  int nind = nrows/2;
-  data.nind = nind;
-  data.data = new short*[nind];
-  data.ind_names = new string[nind];
+    string line;
+    int nind = nrows / 2;
+    data.nind = nind;
+    data.data = new short*[nind];
+    data.ind_names = new string[nind];
 
-  for (int i = 0; i < nind; i++)
+    for (int i = 0; i < nind; i++)
     {
-      data.ind_names[i] = EMPTY_STRING;
+        data.ind_names[i] = EMPTY_STRING;
     }
-  int size;
-  
-  for(int i = 0; i < ndrows;i++)
+    int size;
+
+    for (int i = 0; i < ndrows; i++)
     {
-      getline(fin,line);
-      //this would load loci names, but we don't actualy use them, so why bother.
-      //if(i==0) data.locus_names = split_str_str(size,line.c_str(),DEL);
-    }
-
-  size = ncols;
-  data.nloci = size;
-
-  string key;
-  string field;
-  short int *tmp;
-  //int **block;
-  //double *block;
-  short tmp_dbl;
-  int index;
-  for(int row = 0; row < nrows;row++)
-    {
-      tmp = NULL;
-      //block = NULL;
-      for(int i = 1; i <= ndcols; i++)
-	{
-	  fin >> field;
-	  if(i == sort) key = field;
-	}
-
-      index = search(data.ind_names,nind,key);
-
-      //getline(fin,line);
-      //cerr << line << endl;
-      tmp = split_int(fin,ncols);
-
-      if(index >= 0)
-	{
-	  for(int i = 0; i < size; i++)
-	    {
-	      tmp_dbl = data.data[index][i];
-	      //(*data.data)[key][1][i] = tmp[i];
-	      if(tmp_dbl != STRU_MISSING && tmp[i] != STRU_MISSING)
-		{
-		  data.data[index][i] += tmp[i];
-		}
-	      else
-		{
-		  data.data[index][i] = -9;
-		}
-	    }
-	}
-      else
-	{
-	  index = put(data.ind_names,nind,key);
-	  data.data[index] = new short[size];
-	  //block = new double[size];
-	  /*
-	  block = new int[2];
-	  block[0] = new int[size];
-	  block[1] = new int[size];
-	  */	  
-	  for(int i = 0; i < size; i++)
-	    {
-	      if(tmp[i] != STRU_MISSING) data.data[index][i] = tmp[i];
-	      else data.data[index][i] = -9;
-	    }
-	  //data.data[index] = block;
-	}
-      delete [] tmp;
+        getline(fin, line);
+        //this would load loci names, but we don't actualy use them, so why bother.
+        //if(i==0) data.locus_names = split_str_str(size,line.c_str(),DEL);
     }
 
-  return;
+    size = ncols;
+    data.nloci = size;
+
+    string key;
+    string field;
+    short int *tmp;
+    //int **block;
+    //double *block;
+    short tmp_dbl;
+    int index;
+    for (int row = 0; row < nrows; row++)
+    {
+        tmp = NULL;
+        //block = NULL;
+        for (int i = 1; i <= ndcols; i++)
+        {
+            fin >> field;
+            if (i == sort) key = field;
+        }
+
+        index = search(data.ind_names, nind, key);
+
+        //getline(fin,line);
+        //cerr << line << endl;
+        tmp = split_int(fin, ncols);
+
+        if (index >= 0)
+        {
+            for (int i = 0; i < size; i++)
+            {
+                tmp_dbl = data.data[index][i];
+                //(*data.data)[key][1][i] = tmp[i];
+                if (tmp_dbl != STRU_MISSING && tmp[i] != STRU_MISSING)
+                {
+                    data.data[index][i] += tmp[i];
+                }
+                else
+                {
+                    data.data[index][i] = -9;
+                }
+            }
+        }
+        else
+        {
+            index = put(data.ind_names, nind, key);
+            data.data[index] = new short[size];
+            //block = new double[size];
+            /*
+            block = new int[2];
+            block[0] = new int[size];
+            block[1] = new int[size];
+            */
+            for (int i = 0; i < size; i++)
+            {
+                if (tmp[i] != STRU_MISSING) data.data[index][i] = tmp[i];
+                else data.data[index][i] = -9;
+            }
+            //data.data[index] = block;
+        }
+        delete [] tmp;
+    }
+
+    return;
 }
 
-void readData_ind_asd_tped_tfam(igzstream &pedin, igzstream &famin, structure_data &data,
-				int &nrow, int &nloci, string TPED_MISSING)
+void readData_ind_asd_tped_tfam(string tped_filename, string tfam_filename, structure_data &data,
+                                int &nrow, int &nloci, string TPED_MISSING)
 {
-  string junk;
-  
-  int start = famin.tellg();
-  while(getline(famin,junk)) nrow+=2;
-  famin.clear();
-  famin.seekg(start);
+    string junk;
 
-  start = pedin.tellg();
-  while(getline(pedin,junk)) nloci++;
-  pedin.clear();
-  pedin.seekg(start);
+    igzstream famin, pedin;
 
-  int nind = nrow/2;
-
-  cerr << "Reading " << nind << " diploid individuals at " << nloci << " loci.\n";
-
-  data.nind = nind;
-  data.data = new short*[nind];
-  for(int i = 0; i < nind; i++) data.data[i] = new short[nloci];
-  data.ind_names = new string[nind];
-  
-  for(int i = 0; i < nind; i++)
+    pedin.open(tped_filename.c_str());
+    if (pedin.fail())
     {
-      famin >> junk;
-      famin >> data.ind_names[i];
-      getline(famin,junk);
-    }
-  
-  data.nloci = nloci;
-  //data.locus_names = new string[nloci];
-  /*
-  string *zeroAllele = new string[nloci];
-  for (int i = 0; i < nloci; i++) zeroAllele[i] = TPED_MISSING;
-  */
-  string zeroAllele;
-  string allele1, allele2;
-  short alleleCount = 0;
-  for (int locus = 0; locus < nloci; locus++)
-    {
-      zeroAllele = TPED_MISSING;
-      pedin >> junk;
-      //pedin >> data.locus_names[locus];
-      pedin >> junk;
-      pedin >> junk;
-      pedin >> junk;
-
-      for(int ind = 0; ind < nind; ind++)
-	{
-	  alleleCount = 0;
-	  pedin >> allele1;
-	  pedin >> allele2;
-	  if(allele1.compare(TPED_MISSING) == 0 || allele2.compare(TPED_MISSING) == 0)
-	    {
-	      data.data[ind][locus] = -9;
-	    }
-	  else if(zeroAllele.compare(TPED_MISSING) == 0)
-	    {
-	      zeroAllele = allele1;
-	      if(allele2.compare(zeroAllele) != 0) alleleCount++;
-	      data.data[ind][locus] = alleleCount;
-	    }
-	  else
-	    {
-	      if(allele1.compare(zeroAllele) != 0) alleleCount++;
-	      if(allele2.compare(zeroAllele) != 0) alleleCount++;
-	      data.data[ind][locus] = alleleCount;
-	    }
-	}
+        cerr << "Could not open " << tped_filename << " for reading1.\n";
+        throw - 1;
     }
 
-  //delete [] zeroAllele;
-
-  return;
-}
-
-
-void readData_pop_freq(igzstream &fin,structure_data &data,
-	      int sort, int ndcols, int ndrows, 
-	      int nrows, int ncols)
-{
-  string line;
-  int nind = nrows/2;
-  data.nind = nind;
-  data.data = new short*[nind];
-  data.ind_names = new string[nind];
-
-  for (int i = 0; i < nind; i++)
+    famin.open(tfam_filename.c_str());
+    if (famin.fail())
     {
-      data.ind_names[i] = EMPTY_STRING;
+        cerr << "Could not open " << tfam_filename << " for reading1.\n";
+        throw - 1;
     }
 
-  getline(fin,line);
-  int size;
-  data.locus_names = split_str_str(size,line.c_str(),DEL);
+    //int start = famin.tellg();
+    while (getline(famin, junk)) nrow += 2;
+    famin.close();
+    famin.clear();
+    //famin.seekg(start);
 
-  size = ncols;
-  data.nloci = size;
+    //start = pedin.tellg();
+    while (getline(pedin, junk)) nloci++;
+    pedin.close();
+    pedin.clear();
+    //pedin.seekg(start);
 
-  for(int i = 1; i < ndrows;i++)
+    pedin.open(tped_filename.c_str());
+    if (pedin.fail())
     {
-      getline(fin,line);
+        cerr << "Could not open " << tped_filename << " for reading2.\n";
+        throw - 1;
     }
 
-  string key;
-  string field;
-  short int *tmp;
-  //int **block;
-  //double *block;
-  short tmp_dbl;
-  int index;
-  for(int row = 0; row < nrows;row++)
+    famin.open(tfam_filename.c_str());
+    if (famin.fail())
     {
-      tmp = NULL;
-      //block = NULL;
-      for(int i = 1; i <= ndcols; i++)
-	{
-	  fin >> field;
-	  if(i == sort) key = field;
-	}
-
-      index = search(data.ind_names,nind,key);
-
-      //getline(fin,line);
-      //cerr << line << endl;
-      tmp = split_int(fin,ncols);
-
-      if(index >= 0)
-	{
-	  for(int i = 0; i < size; i++)
-	    {
-	      tmp_dbl = data.data[index][i];
-	      //(*data.data)[key][1][i] = tmp[i];
-	      if(tmp_dbl >= 0 && tmp[i] >= 0)
-		{
-		  data.data[index][i] += tmp[i];
-		}
-	      else
-		{
-		  data.data[index][i] = -9;
-		}
-	    }
-	}
-      else
-	{
-	  index = put(data.ind_names,nind,key);
-	  data.data[index] = new short[size];
-	  //block = new double[size];
-	  /*
-	  block = new int[2];
-	  block[0] = new int[size];
-	  block[1] = new int[size];
-	  */	  
-	  for(int i = 0; i < size; i++)
-	    {
-	      data.data[index][i] = tmp[i];
-	    }
-	  //data.data[index] = block;
-	}
-      delete [] tmp;
+        cerr << "Could not open " << tfam_filename << " for reading2.\n";
+        throw - 1;
     }
 
-  return;
+    int nind = nrow / 2;
+
+    cerr << "Reading " << nind << " diploid individuals at " << nloci << " loci.\n";
+
+    data.nind = nind;
+    data.data = new short*[nind];
+    for (int i = 0; i < nind; i++) data.data[i] = new short[nloci];
+    data.ind_names = new string[nind];
+
+    for (int i = 0; i < nind; i++)
+    {
+        famin >> junk;
+        famin >> data.ind_names[i];
+        getline(famin, junk);
+    }
+
+    data.nloci = nloci;
+    //data.locus_names = new string[nloci];
+    /*
+    string *zeroAllele = new string[nloci];
+    for (int i = 0; i < nloci; i++) zeroAllele[i] = TPED_MISSING;
+    */
+    string zeroAllele;
+    string allele1, allele2;
+    short alleleCount = 0;
+    for (int locus = 0; locus < nloci; locus++)
+    {
+        zeroAllele = TPED_MISSING;
+        pedin >> junk;
+        //pedin >> data.locus_names[locus];
+        pedin >> junk;
+        pedin >> junk;
+        pedin >> junk;
+
+        for (int ind = 0; ind < nind; ind++)
+        {
+            alleleCount = 0;
+            pedin >> allele1;
+            pedin >> allele2;
+            if (allele1.compare(TPED_MISSING) == 0 || allele2.compare(TPED_MISSING) == 0)
+            {
+                data.data[ind][locus] = -9;
+            }
+            else if (zeroAllele.compare(TPED_MISSING) == 0)
+            {
+                zeroAllele = allele1;
+                if (allele2.compare(zeroAllele) != 0) alleleCount++;
+                data.data[ind][locus] = alleleCount;
+            }
+            else
+            {
+                if (allele1.compare(zeroAllele) != 0) alleleCount++;
+                if (allele2.compare(zeroAllele) != 0) alleleCount++;
+                data.data[ind][locus] = alleleCount;
+            }
+        }
+    }
+
+    //delete [] zeroAllele;
+
+    return;
 }
 
 
-int search(string *s,int size,string key)
+void readData_pop_freq(igzstream &fin, structure_data &data,
+                       int sort, int ndcols, int ndrows,
+                       int nrows, int ncols)
 {
-  for (int i = 0; i < size; i++)
+    string line;
+    int nind = nrows / 2;
+    data.nind = nind;
+    data.data = new short*[nind];
+    data.ind_names = new string[nind];
+
+    for (int i = 0; i < nind; i++)
     {
-      if(s[i].compare(key) == 0) return i;
+        data.ind_names[i] = EMPTY_STRING;
     }
-  return -9;
+
+    getline(fin, line);
+    int size;
+    data.locus_names = split_str_str(size, line.c_str(), DEL);
+
+    size = ncols;
+    data.nloci = size;
+
+    for (int i = 1; i < ndrows; i++)
+    {
+        getline(fin, line);
+    }
+
+    string key;
+    string field;
+    short int *tmp;
+    //int **block;
+    //double *block;
+    short tmp_dbl;
+    int index;
+    for (int row = 0; row < nrows; row++)
+    {
+        tmp = NULL;
+        //block = NULL;
+        for (int i = 1; i <= ndcols; i++)
+        {
+            fin >> field;
+            if (i == sort) key = field;
+        }
+
+        index = search(data.ind_names, nind, key);
+
+        //getline(fin,line);
+        //cerr << line << endl;
+        tmp = split_int(fin, ncols);
+
+        if (index >= 0)
+        {
+            for (int i = 0; i < size; i++)
+            {
+                tmp_dbl = data.data[index][i];
+                //(*data.data)[key][1][i] = tmp[i];
+                if (tmp_dbl >= 0 && tmp[i] >= 0)
+                {
+                    data.data[index][i] += tmp[i];
+                }
+                else
+                {
+                    data.data[index][i] = -9;
+                }
+            }
+        }
+        else
+        {
+            index = put(data.ind_names, nind, key);
+            data.data[index] = new short[size];
+            //block = new double[size];
+            /*
+            block = new int[2];
+            block[0] = new int[size];
+            block[1] = new int[size];
+            */
+            for (int i = 0; i < size; i++)
+            {
+                data.data[index][i] = tmp[i];
+            }
+            //data.data[index] = block;
+        }
+        delete [] tmp;
+    }
+
+    return;
 }
 
-int put(string *s,int size,string key)
+
+int search(string *s, int size, string key)
 {
-  for(int i = 0; i < size; i ++)
+    for (int i = 0; i < size; i++)
     {
-      if(s[i].compare(EMPTY_STRING) == 0)
-	{
-	  s[i] = key;
-	  return i;
-	}
+        if (s[i].compare(key) == 0) return i;
     }
-  cerr << "ERROR: This shouldn't be possible.  Try --check-file or --check-deep.\n";
-  exit(0);
+    return -9;
+}
+
+int put(string *s, int size, string key)
+{
+    for (int i = 0; i < size; i ++)
+    {
+        if (s[i].compare(EMPTY_STRING) == 0)
+        {
+            s[i] = key;
+            return i;
+        }
+    }
+    cerr << "ERROR: This shouldn't be possible.  Try --check-file or --check-deep.\n";
+    exit(0);
 }
 
 // Split a NULL-terminated character array on a given character into
 // a vector of strings
 // The vector is passed by reference and cleared each time
 // The number of strings split out is returned
-short int* split_int(igzstream &fin, int fields)
+short int *split_int(igzstream &fin, int fields)
 {
-  /*
-  vector<string> v;
-  while (true)
+    /*
+    vector<string> v;
+    while (true)
+      {
+        const char* begin = s;
+
+        while (*s != c && *s) { ++s; }
+
+        v.push_back(string(begin, s));
+
+        if (!*s)
     {
-      const char* begin = s;
-      
-      while (*s != c && *s) { ++s; }
-      
-      v.push_back(string(begin, s));
-      
-      if (!*s)
-	{
-	  break;
-	}
-      
-      if (!*++s)
-	{
-	  //v.push_back("");
-	  break;
-	}
+      break;
     }
-  */
-  short int *a = new short int[fields];
-  for (int i = 0; i < fields; i++)
+
+        if (!*++s)
     {
-      fin >> a[i];
-      //cout << a[i] << endl;
+      //v.push_back("");
+      break;
     }
-  /*
-  for(int i = 0; i < v.size();i++)
+      }
+    */
+    short int *a = new short int[fields];
+    for (int i = 0; i < fields; i++)
     {
-      a[i]=atoi(v[i].c_str());
+        fin >> a[i];
+        //cout << a[i] << endl;
     }
-  */
-  return a;
+    /*
+    for(int i = 0; i < v.size();i++)
+      {
+        a[i]=atoi(v[i].c_str());
+      }
+    */
+    return a;
 }
 
-string* split_str_str(int &size, const char* s, char c)
+string *split_str_str(int &size, const char *s, char c)
 {
-  vector<string> v;
-  while (true)
+    vector<string> v;
+    while (true)
     {
-      const char* begin = s;
-      
-      while (*s != c && *s) { ++s; }
-      
-      v.push_back(string(begin, s));
-      
-      if (!*s)
-	{
-	  break;
-	}
-      
-      if (!*++s)
-	{
-	  v.push_back("");
-	  break;
-	}
-    }
-  string * x = new string[v.size()];
-  
-  for(int i = 0; i < v.size();i++)
-    {
-      x[i]=v[i];
-    } 
+        const char *begin = s;
 
-  size = v.size();
-  return x;
+        while (*s != c && *s)
+        {
+            ++s;
+        }
+
+        v.push_back(string(begin, s));
+
+        if (!*s)
+        {
+            break;
+        }
+
+        if (!*++s)
+        {
+            v.push_back("");
+            break;
+        }
+    }
+    string *x = new string[v.size()];
+
+    for (int i = 0; i < v.size(); i++)
+    {
+        x[i] = v[i];
+    }
+
+    size = v.size();
+    return x;
 }
 
 /*
 void printHelp(map<string,int> &argi, map<string,string> &args,
-	       map<string,bool> &argb)
+           map<string,bool> &argb)
 {
   map<string,int>::iterator i1;
   map<string,string>::iterator i2;
@@ -1467,15 +1515,15 @@ void printHelp(map<string,int> &argi, map<string,string> &args,
     {
       cout << (*i3).first<< " bool\n";
     }
-  
+
    return;
 }
 
 
 bool parse_cmd_line(int argc, char* argv[],
-		    map<string,int> &argi, 
-		    map<string,string> &args,
-		    map<string,bool> &argb)
+            map<string,int> &argi,
+            map<string,string> &args,
+            map<string,bool> &argb)
 {
 
   argb[ARG_CHECK_FILE_DEEP] = false;
@@ -1491,26 +1539,26 @@ bool parse_cmd_line(int argc, char* argv[],
   argb[ARG_FULL] = false;
   argb[ARG_FULL_LOG] = false;
   argb[ARG_CALC_IBS] = false;
-  
-  
+
+
   for (int i = 1; i < argc;i++)
     {
       if(argi.count(argv[i]) > 0)
-	{
-	  argi[argv[i]] = atoi(argv[i+1]);
-	}
+    {
+      argi[argv[i]] = atoi(argv[i+1]);
+    }
       else if(args.count(argv[i]) > 0)
-	{
-	  args[argv[i]] = argv[i+1];
-	}
+    {
+      args[argv[i]] = argv[i+1];
+    }
       else if(argb.count(argv[i]) > 0)
-	{
-	  argb[argv[i]] = true;
-	}
+    {
+      argb[argv[i]] = true;
+    }
       else if(ARG_HELP.compare(argv[i]) == 0)
-	{
-	  return 1;
-	}
+    {
+      return 1;
+    }
     }
 
   return 0;
