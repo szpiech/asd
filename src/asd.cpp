@@ -126,7 +126,7 @@ int main(int argc, char *argv[])
     if (!check_file_check(CHECK_FILE, CHECK_FILE_DEEP, STRU)) {
         argerr = true;
         LOG.err("ERROR:", ARG_CHECK_FILE, false);
-        LOG.err(" and", ARG_CHECK_FILE_DEEP,false);
+        LOG.err(" and", ARG_CHECK_FILE_DEEP, false);
         LOG.err(" are not supported with tped/tfam files.");
     }
 
@@ -141,7 +141,7 @@ int main(int argc, char *argv[])
     //bool ASD = params->getBoolFlag(ARG_CALC_ASD);
     //bool FST = params->getBoolFlag(ARG_CALC_FST);
 
-        if (argerr) return -1;
+    if (argerr) return -1;
 
     bool FILE_STATUS_GOOD;
     if ((CHECK_FILE || CHECK_FILE_DEEP) && STRU)
@@ -181,47 +181,13 @@ int main(int argc, char *argv[])
         nind = nrows / 2;
     }
 
-    DIST_MAT = new double*[nind];
-    for (int i = 0; i < nind; i++)
-    {
-        DIST_MAT[i] = new double[nind];
-        for (int j = 0; j < nind; j++) DIST_MAT[i][j] = 0;
-    }
-
-    NUM_LOCI = new int *[nind];
-    for (int i = 0; i < nind; i++)
-    {
-        NUM_LOCI[i] = new int[nind];
-        for (int j = 0; j < nind; j++) NUM_LOCI[i][j] = 0;
-    }
-
-    if (CALC_ALL_IBS)
-    {
-        IBS_0_MAT = new int *[nind];
-        for (int i = 0; i < nind; i++)
-        {
-            IBS_0_MAT[i] = new int[nind];
-            for (int j = 0; j < nind; j++) IBS_0_MAT[i][j] = 0;
-        }
-        IBS_1_MAT = new int *[nind];
-        for (int i = 0; i < nind; i++)
-        {
-            IBS_1_MAT[i] = new int[nind];
-            for (int j = 0; j < nind; j++) IBS_1_MAT[i][j] = 0;
-        }
-        IBS_2_MAT = new int *[nind];
-        for (int i = 0; i < nind; i++)
-        {
-            IBS_2_MAT[i] = new int[nind];
-            for (int j = 0; j < nind; j++) IBS_2_MAT[i][j] = 0;
-        }
-    }
+    init_storage(nind, CALC_ALL_IBS);
 
     //data.nind = nrows/2;
     if (num_threads > ncols) num_threads = ncols;
     work_order_t *order;
-    unsigned long int *NUM_PER_THREAD = new unsigned long int[num_threads];
-    unsigned long int div = ncols / num_threads;
+    unsigned int *NUM_PER_THREAD = new unsigned int[num_threads];
+    unsigned int div = ncols / num_threads;
 
     for (int i = 0; i < num_threads; i++)
     {
@@ -235,7 +201,7 @@ int main(int argc, char *argv[])
     }
 
     pthread_t *peer = new pthread_t[num_threads];
-    unsigned long int prev_index = 0;
+    unsigned int prev_index = 0;
     for (int i = 0; i < num_threads; i++)
     {
         order = new work_order_t;
@@ -251,118 +217,20 @@ int main(int argc, char *argv[])
 
     }
 
+    for (int i = 0; i < num_threads; i++) pthread_join(peer[i], NULL);
 
-    for (int i = 0; i < num_threads; i++)
+    finalize_calculations(nind, ncols, CALC_ALL_IBS);
+
+    write_dist_matrix(outfile, nind, ncols, data.ind_names, PRINT_FULL, PRINT_FULL_LOG);
+
+
+    if (CALC_ALL_IBS)
     {
-        pthread_join(peer[i], NULL);
+        write_ibs_matrices(outfile, nind, ncols, data.ind_names, PRINT_FULL, PRINT_FULL_LOG);
     }
-
-
-    for (int i = 0; i < nind; i++)
-    {
-        for (int j = i; j < nind; j++)
-        {
-            if (i == j)
-            {
-                DIST_MAT[i][j] = ncols + NUM_LOCI[i][j];
-                //NUM_LOCI[i][j] = ncols+NUM_LOCI[i][j];
-                if (CALC_ALL_IBS)
-                {
-                    IBS_0_MAT[i][j] = 0;
-                    IBS_1_MAT[i][j] = 0;
-                    IBS_2_MAT[i][j] = ncols + NUM_LOCI[i][j];
-                }
-            }
-            else
-            {
-                DIST_MAT[j][i] = DIST_MAT[i][j];
-                NUM_LOCI[j][i] = NUM_LOCI[i][j];
-                if (CALC_ALL_IBS)
-                {
-                    IBS_0_MAT[j][i] = IBS_0_MAT[i][j];
-                    IBS_1_MAT[j][i] = IBS_1_MAT[i][j];
-                    IBS_2_MAT[j][i] = IBS_2_MAT[i][j];
-                }
-            }
-        }
-    }
-
-
-    //I should have checked if streams were threadsafe before I bothered with this
-    //But they aren't, or I missed something, so I join threads immediately after
-    //creating
-
-    ostream **out = new ostream*[4];
-    ofstream outfile_dist, outfile_ibs0, outfile_ibs1, outfile_ibs2;
-    if (outfile.compare("outfile") == 0)
-    {
-        out[0] = &cout;
-        if (CALC_ALL_IBS)
-        {
-            out[1] = &cout;
-            out[2] = &cout;
-            out[3] = &cout;
-        }
-    }
-    else
-    {
-        string dist_fname = outfile + ".dist";
-        outfile_dist.open(dist_fname.c_str());
-        out[0] = &outfile_dist;
-        if (CALC_ALL_IBS)
-        {
-            string ibs0_fname = outfile + ".ibs0";
-            string ibs1_fname = outfile + ".ibs1";
-            string ibs2_fname = outfile + ".ibs2";
-            outfile_ibs0.open(ibs0_fname.c_str());
-            out[1] = &outfile_ibs0;
-            outfile_ibs1.open(ibs1_fname.c_str());
-            out[2] = &outfile_ibs1;
-            outfile_ibs2.open(ibs2_fname.c_str());
-            out[3] = &outfile_ibs2;
-        }
-    }
-
-    pthread_t output_peer;
-    output_order_t **output_order = new output_order_t *[4];
-    string types[4] = {"dist", "ibs0", "ibs1", "ibs2"};
-
-
-    for (int i = 0; i < 4; i ++)
-    {
-        output_order[i] = new output_order_t;
-        output_order[i]->PRINT_FULL = PRINT_FULL;
-        output_order[i]->PRINT_FULL_LOG = PRINT_FULL_LOG;
-        output_order[i]->ind_names = data.ind_names;
-        output_order[i]->ncols = ncols;
-        output_order[i]->nind = nind;
-    }
-
-
-    for (int i = 0; i < 4; i++)
-    {
-        if (i > 0 && !CALC_ALL_IBS) continue;
-        output_order[i]->out = out[i];
-        output_order[i]->type = types[i];
-        pthread_create(&(output_peer),
-                       NULL,
-                       (void *(*)(void *))output,
-                       (void *)output_order[i]);
-        //join after create because this was all useless
-        pthread_join(output_peer, NULL);
-    }
-
 
     delete [] NUM_PER_THREAD;
     delete [] peer;
-    //delete [] data.locus_names;
-
-    for (int i = 0; i < 4; i++)
-    {
-        delete output_order[i];
-    }
-    delete [] output_order;
-
     return 0;
 }
 

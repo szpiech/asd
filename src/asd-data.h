@@ -24,41 +24,41 @@ extern pthread_mutex_t mutex_ibs_2;
 
 typedef struct
 {
-    short **data;
-    string *locus_names;
-    string *ind_names;
-    //map<string,int> sample_size;
-    int nloci;
-    int nind;
+	short **data;
+	string *locus_names;
+	string *ind_names;
+	//map<string,int> sample_size;
+	int nloci;
+	int nind;
 } structure_data;
 
 typedef struct
 {
-    int first_index;
-    int last_index;
-    structure_data *stru_data;
-    int missing;
-    bool CALC_ALL_IBS;
+	int first_index;
+	int last_index;
+	structure_data *stru_data;
+	int missing;
+	bool CALC_ALL_IBS;
 } work_order_t;
 
 typedef struct
 {
-    bool PRINT_FULL;
-    bool PRINT_FULL_LOG;
-    ostream *out;
-    string *ind_names;
-    int ncols;
-    string type;
-    int nind;
+	bool PRINT_FULL;
+	bool PRINT_FULL_LOG;
+	ostream *out;
+	string *ind_names;
+	int ncols;
+	string type;
+	int nind;
 } output_order_t;
 
 typedef struct
 {
-    double **data;
-    string *pop_names;
-    int *nind;
-    int npop;
-    int nloci;
+	double **data;
+	string *pop_names;
+	int *nind;
+	int npop;
+	int nloci;
 } population_data;
 
 void readData_ind_asd(igzstream &fin, structure_data &data,
@@ -83,5 +83,10 @@ void output(void *order);
 int search(string *s, int size, string key);
 int put(string *s, int size, string key);
 
+bool init_storage(int nind, bool CALC_ALL_IBS);
+bool finalize_calculations(int nind, int ncols, bool CALC_ALL_IBS);
+
+void write_ibs_matrices(string outfile, int nind, int ncols, string *ind_names, bool PRINT_FULL, bool PRINT_FULL_LOG);
+void write_dist_matrix(string outfile, int nind, int ncols, string *ind_names, bool PRINT_FULL, bool PRINT_FULL_LOG);
 
 #endif
