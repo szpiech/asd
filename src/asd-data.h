@@ -62,20 +62,20 @@ typedef struct
 } population_data;
 
 structure_data *readData_stru(string infile,
-                   int sort, int ndcols, int ndrows,
-                   int nrows, int ncols, string STRU_MISSING);
+                              int sort, int ndcols, int ndrows,
+                              int nrows, int ncols, string STRU_MISSING);
+structure_data *readData_stru2(string infile, int sort,
+                               int &nrows, int &ncols, string STRU_MISSING);
 
+/*
 void readData_ind_asd(igzstream &fin, structure_data &data,
                       int sort, int ndcols, int ndrows, int nrows, int ncols, string STRU_MISSING);
+*/
 
 void readData_ind_asd_tped_tfam(string tped_filename, string tfam_filename, structure_data &data,
                                 int &nrow, int &nloci, string TPED_MISSING);
 
-bool checkFile(param_t *params);
 int countFields(string junk);
-bool readData_Check(igzstream &fin, structure_data &data,
-                    int sort, int ndcols, int ndrows,
-                    int nrows, int ncols);
 void readData_pop_freq(igzstream &fin, structure_data &data,
                        int sort, int ndcols, int ndrows,
                        int nrows, int ncols);
@@ -90,7 +90,7 @@ int put(string *s, int size, string key);
 bool init_storage(int nind, bool CALC_ALL_IBS);
 bool finalize_calculations(int nind, int ncols, bool CALC_ALL_IBS);
 
-void write_ibs_matrices(string outfile, int nind, int ncols, string *ind_names, bool PRINT_FULL, bool PRINT_FULL_LOG);
-void write_dist_matrix(string outfile, int nind, int ncols, string *ind_names, bool PRINT_FULL, bool PRINT_FULL_LOG);
+void write_ibs_matrices(string outfile, int nind, int ncols, string *ind_names, bool PRINT_PARTIAL);
+void write_dist_matrix(string outfile, int nind, int ncols, string *ind_names, bool PRINT_PARTIAL, bool PRINT_LOG);
 
 #endif

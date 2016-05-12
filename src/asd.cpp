@@ -56,79 +56,34 @@ int main(int argc, char *argv[])
         argerr = true;
         LOG.err("ERROR: Must specify either stru or tped/tfam.");
     }
-
-    int nrows = params->getIntFlag(ARG_NROWS); //nchr
-    if (!check_int_gt_0(nrows) && STRU) {
-        argerr = true;
-        LOG.err("ERROR: Number of chr must be > 0.");
-    }
-    LOG.log("nrows:", nrows);
-
-    int ndrows = params->getIntFlag(ARG_NDROWS);
-    if (!check_int_gt_0(ndrows) && STRU) {
-        argerr = true;
-        LOG.err("ERROR: Non-data rows must be > 0.");
-    }
-    LOG.log("ndrows:", ndrows);
-
-    int ncols = params->getIntFlag(ARG_NCOLS);//nloci
-    if (!check_int_gt_0(ncols) && STRU) {
-        argerr = true;
-        LOG.err("ERROR: Number of loci must be > 0.");
-    }
-    LOG.log("ncols:", ncols);
-
-    int ndcols = params->getIntFlag(ARG_NDCOLS);
-    if (!check_int_gt_0(ndcols) && STRU) {
-        argerr = true;
-        LOG.err("ERROR: Non-data columns must be > 0.");
-    }
-    LOG.log("ndcols:", ndcols);
+    if (STRU) LOG.log("Input stru file:", filename);
+    if (TPED) LOG.log("Input tped file:", tped_filename);
+    if (TFAM) LOG.log("Input tfam file:", tfam_filename);
 
     int sort = params->getIntFlag(ARG_SORT);
-    if (!check_int_gt_0(sort) && STRU) {
-        argerr = true;
-        LOG.err("ERROR: Column to sort by must be > 0");
-    }
-    LOG.log("sort:", sort);
-
-    if (!check_sort_ge_ndcols(sort, ndcols) && STRU) {
-        argerr = true;
-        LOG.err("ERROR: Must sort by a non-data column (sort >= ndcols).");
-    }
+    if (STRU) LOG.log("Individual ID column:", sort);
 
     int num_threads = params->getIntFlag(ARG_THREAD);
     if (!check_int_gt_0(num_threads)) {
         argerr = true;
         LOG.err("ERROR: Must have a positive number of threads.");
     }
-    LOG.log("threads:", num_threads);
+    LOG.log("Number of threads:", num_threads);
 
-    int nind = nrows / 2;
-    bool PRINT_FULL = params->getBoolFlag(ARG_FULL);
-    bool PRINT_FULL_LOG = params->getBoolFlag(ARG_FULL_LOG);
-    if (!check_print_full(PRINT_FULL, PRINT_FULL_LOG)) {
+    bool PRINT_PARTIAL = params->getBoolFlag(ARG_PARTIAL);
+    bool PRINT_LOG = params->getBoolFlag(ARG_LOG);
+    if (PRINT_PARTIAL && PRINT_LOG) {
         argerr = true;
-        LOG.err("ERROR: Must choose only one of --full, --full-log.");
+        LOG.err("ERROR: Must choose only one of --partial, --log.");
     }
-    LOG.log("Print allele sharing distances:", PRINT_FULL || PRINT_FULL_LOG);
-    LOG.log("Log transformed:", PRINT_FULL_LOG);
+    if (!PRINT_PARTIAL) {
+        LOG.log("Print allele sharing matrix:", !PRINT_PARTIAL);
+        LOG.log("Log transformed:", PRINT_LOG);
+    }
+    else LOG.log("Print partial allele sharing matrix:", PRINT_PARTIAL);
 
     bool CALC_ALL_IBS = params->getBoolFlag(ARG_CALC_IBS);
     LOG.log("Output IBS matricies:", CALC_ALL_IBS);
-
-    bool CHECK_FILE = params->getBoolFlag(ARG_CHECK_FILE);
-    LOG.log("Check STRU file:", CHECK_FILE);
-
-    bool CHECK_FILE_DEEP = params->getBoolFlag(ARG_CHECK_FILE_DEEP);
-    LOG.log("Check STRU file deep:", CHECK_FILE_DEEP);
-
-    if (!check_file_check(CHECK_FILE, CHECK_FILE_DEEP, STRU)) {
-        argerr = true;
-        LOG.err("ERROR:", ARG_CHECK_FILE, false);
-        LOG.err(" and", ARG_CHECK_FILE_DEEP, false);
-        LOG.err(" are not supported with tped/tfam files.");
-    }
 
     string STRU_MISSING = params->getStringFlag(ARG_STRU_MISSING);
     string TPED_MISSING = params->getStringFlag(ARG_TPED_MISSING);
@@ -138,45 +93,30 @@ int main(int argc, char *argv[])
     else {
         LOG.log("TPED missing code:", TPED_MISSING);
     }
-    //bool ASD = params->getBoolFlag(ARG_CALC_ASD);
-    //bool FST = params->getBoolFlag(ARG_CALC_FST);
 
     if (argerr) return -1;
 
-    bool FILE_STATUS_GOOD;
-    if ((CHECK_FILE || CHECK_FILE_DEEP) && STRU)
-    {
-        FILE_STATUS_GOOD = checkFile(params);
-        if (FILE_STATUS_GOOD) cerr << "File appears to be ok.\n";
-        return -1;
-    }
+    int nrows, ncols;
 
-//    igzstream fin;
     structure_data *data;
-    if (STRU)
-    {
-        //data = readData_ind_asd(fin, data, sort, ndcols, ndrows, nrows, ncols, STRU_MISSING);
+    if (STRU) {
         try {
-            data = readData_stru(filename, sort, ndcols, ndrows, nrows, ncols, STRU_MISSING);
+            data = readData_stru2(filename, sort, nrows, ncols, STRU_MISSING);
         }
-        catch (...){
+        catch (...) {
             return -1;
         }
     }
-    else
-    {
-        nrows = 0;
-        ncols = 0;
-        /* if(ASD)*/
-        try{
+    else {
+        try {
             //readData_ind_asd_tped_tfam(tped_filename, tfam_filename, data, nrows, ncols, TPED_MISSING);
         }
-        catch (...)
-        {
+        catch (...) {
             return -1;
         }
-        nind = nrows / 2;
     }
+
+    int nind = nrows / 2;
 
     init_storage(nind, CALC_ALL_IBS);
 
@@ -204,11 +144,11 @@ int main(int argc, char *argv[])
 
     finalize_calculations(nind, ncols, CALC_ALL_IBS);
 
-    write_dist_matrix(outfile, nind, ncols, data->ind_names, PRINT_FULL, PRINT_FULL_LOG);
+    write_dist_matrix(outfile, nind, ncols, data->ind_names, PRINT_PARTIAL, PRINT_LOG);
 
     if (CALC_ALL_IBS)
     {
-        write_ibs_matrices(outfile, nind, ncols, data->ind_names, PRINT_FULL, PRINT_FULL_LOG);
+        write_ibs_matrices(outfile, nind, ncols, data->ind_names, PRINT_PARTIAL);
     }
 
     delete [] NUM_PER_THREAD;

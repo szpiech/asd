@@ -87,7 +87,7 @@ bool finalize_calculations(int nind, int ncols, bool CALC_ALL_IBS) {
 	return true;
 }
 
-void write_ibs_matrices(string outfile, int nind, int ncols, string *ind_names, bool PRINT_FULL, bool PRINT_FULL_LOG) {
+void write_ibs_matrices(string outfile, int nind, int ncols, string *ind_names, bool PRINT_PARTIAL) {
 	string ibs_fname[3];
 	ibs_fname[0] = outfile + ".ibs0";
 	ibs_fname[1] = outfile + ".ibs1";
@@ -112,13 +112,10 @@ void write_ibs_matrices(string outfile, int nind, int ncols, string *ind_names, 
 			LOG.err("ERROR: Could not open", ibs_fname[ibs]);
 			throw 0;
 		}
-		if (!PRINT_FULL && !PRINT_FULL_LOG)
-		{
+		if (PRINT_PARTIAL){
 			out << nind << endl;
-			for (int i = 0; i < nind; i++)
-			{
-				for (int j = 0; j < nind; j++)
-				{
+			for (int i = 0; i < nind; i++){
+				for (int j = 0; j < nind; j++){
 					out << double(ncols) + double(NUM_LOCI[i][j]) << " ";
 				}
 				out << endl;
@@ -137,7 +134,7 @@ void write_ibs_matrices(string outfile, int nind, int ncols, string *ind_names, 
 			out << ind_names[i] << " ";
 			for (int j = 0; j < nind ; j++)
 			{
-				if (PRINT_FULL_LOG || PRINT_FULL)
+				if (!PRINT_PARTIAL)
 				{
 					out << double(mat[i][j]) /
 					    (double(ncols) + double(NUM_LOCI[i][j])) << " ";
@@ -154,9 +151,9 @@ void write_ibs_matrices(string outfile, int nind, int ncols, string *ind_names, 
 	return;
 }
 
-void write_dist_matrix(string outfile, int nind, int ncols, string *ind_names, bool PRINT_FULL, bool PRINT_FULL_LOG) {
+void write_dist_matrix(string outfile, int nind, int ncols, string *ind_names, bool PRINT_PARTIAL, bool PRINT_LOG) {
 	ofstream out;
-	if (PRINT_FULL || PRINT_FULL_LOG) {
+	if (!PRINT_PARTIAL) {
 		outfile += ".asd.dist";
 	}
 	else {
@@ -168,7 +165,7 @@ void write_dist_matrix(string outfile, int nind, int ncols, string *ind_names, b
 		LOG.err("ERROR: Could not open", outfile);
 		throw 0;
 	}
-	if (!PRINT_FULL && !PRINT_FULL_LOG)
+	if (PRINT_PARTIAL)
 	{
 		out << nind << endl;
 		for (int i = 0; i < nind; i++)
@@ -193,13 +190,13 @@ void write_dist_matrix(string outfile, int nind, int ncols, string *ind_names, b
 		out << ind_names[i] << " ";
 		for (int j = 0; j < nind ; j++)
 		{
-			if (PRINT_FULL_LOG)
+			if (PRINT_LOG)
 			{
 				out << 0 - log(double(DIST_MAT[i][j]) /
 				               (double(ncols) + double(NUM_LOCI[i][j])))
 				    << " ";
 			}
-			else if (PRINT_FULL)
+			else if (!PRINT_PARTIAL)
 			{
 				out << 1 - (double(DIST_MAT[i][j]) /
 				            (double(ncols) + double(NUM_LOCI[i][j])))
@@ -212,225 +209,6 @@ void write_dist_matrix(string outfile, int nind, int ncols, string *ind_names, b
 	out.close();
 	return;
 }
-
-bool readData_Check(igzstream &fin, structure_data &data,
-                    int sort, int ndcols, int ndrows,
-                    int nrows, int ncols)
-{
-	bool FILE_STATUS = true;
-
-	string line;
-	int nind = nrows / 2;
-	data.nind = nind;
-	data.data = new short*[nind];
-	data.ind_names = new string[nind];
-
-	for (int i = 0; i < nind; i++)
-	{
-		data.ind_names[i] = EMPTY_STRING;
-	}
-
-	getline(fin, line);
-	int size;
-	data.locus_names = split_str_str(size, line.c_str(), DEL);
-
-	size = ncols;
-	data.nloci = size;
-
-	for (int i = 1; i < ndrows; i++)
-	{
-		getline(fin, line);
-	}
-
-	string key;
-	string field;
-	short int *tmp;
-	//int **block;
-	//double *block;
-	short tmp_dbl;
-	int index;
-
-
-	short *ind_count = new short[nind];
-
-	for (int i = 0; i < nind; i++) ind_count[i] = 0;
-
-	for (int row = 0; row < nrows; row++)
-	{
-		tmp = NULL;
-		//block = NULL;
-		for (int i = 1; i <= ndcols; i++)
-		{
-			fin >> field;
-			if (i == sort) key = field;
-		}
-
-		index = search(data.ind_names, nind, key);
-		tmp = split_int(fin, ncols);
-
-		if (index >= 0)
-		{
-			ind_count[index]++;
-
-			if (ind_count[index] > 2)
-			{
-				FILE_STATUS &= false;
-				cerr << "Individual " << key << " seen "
-				     << ind_count[index] << "times.\n";
-			}
-
-			for (int i = 0; i < size; i++)
-			{
-
-				if (tmp[i] != 1 && tmp[i] != 0 && tmp[i] != -9)
-				{
-					FILE_STATUS &= false;
-					cerr << "LINE " << row + ndrows << " COL "
-					     << i + ndcols << ": Allele '" << tmp[i]
-					     << "' is not 0/1/-9.\n";
-				}
-			}
-		}
-		else
-		{
-			index = put(data.ind_names, nind, key);
-			if (index > nind - 1)
-			{
-				cerr << "Found more than " << nind << " individuals.";
-				exit(-1);
-			}
-			ind_count[index]++;
-
-			for (int i = 0; i < size; i++)
-			{
-				if (tmp[i] != 1 && tmp[i] != 0 && tmp[i] != -9)
-				{
-					FILE_STATUS &= false;
-					cerr << "LINE " << row + ndrows << " COL "
-					     << i << ": Allele " << tmp[i] << " is not 0/1/-9.\n";
-				}
-			}
-		}
-		delete [] tmp;
-	}
-
-	return FILE_STATUS;
-}
-
-bool checkFile(param_t *params)
-{
-
-	string outfile = params->getStringFlag(ARG_OUTFILE);
-	string filename = params->getStringFlag(ARG_FILENAME);
-	int nrows = params->getIntFlag(ARG_NROWS);
-	int ndrows = params->getIntFlag(ARG_NDROWS);
-	int ncols = params->getIntFlag(ARG_NCOLS);
-	int ndcols = params->getIntFlag(ARG_NDCOLS);
-	int sort = params->getIntFlag(ARG_SORT);
-	int num_threads = params->getIntFlag(ARG_THREAD);
-	int nind = nrows / 2;
-	bool PRINT_FULL = params->getBoolFlag(ARG_FULL);
-	bool PRINT_FULL_LOG = params->getBoolFlag(ARG_FULL_LOG);
-	bool quit = false;
-	bool CALC_ALL_IBS = params->getBoolFlag(ARG_CALC_IBS);
-	bool CHECK_FILE = params->getBoolFlag(ARG_CHECK_FILE);
-	bool CHECK_FILE_DEEP = params->getBoolFlag(ARG_CHECK_FILE_DEEP);
-	bool FILE_STATUS = true;
-
-	igzstream fin;
-	fin.open(filename.c_str());
-
-	if (fin.fail())
-	{
-		cerr << "Could not open " << filename << " for reading.'n";
-		return 0;
-	}
-
-	string junk;
-	int fields;
-	int counter = 1;
-	int ndr_counter = ndrows;
-	int obs_cols;
-	int obs_rows = 0;
-	do
-	{
-		getline(fin, junk);
-		fields = countFields(junk);
-		if (fields == 0 && counter < nrows + ndrows)
-		{
-			FILE_STATUS &= false;
-			cerr << "LINE " << counter << ": "
-			     << "Blank line found.\n";
-		}
-		else if (fields == 0)
-		{
-		}
-		else if (ndr_counter > 0)
-		{
-			if (counter == 1)
-			{
-				obs_cols = fields;
-				if (obs_cols != ncols)
-				{
-					FILE_STATUS &= false;
-					cerr << "LINE " << counter << ": ";
-					cerr << "Found " << obs_cols << " loci. Expected "
-					     << ncols << ".\n";;
-				}
-			}
-			else
-			{
-				if (fields != ncols)
-				{
-					FILE_STATUS &= false;
-					cerr << "LINE " << counter << ": ";
-					cerr << "Found " << fields << " fields in an assumed "
-					     << "header row. Expected " << ncols << ".\n";;
-				}
-			}
-			ndr_counter--;
-		}
-		else
-		{
-			if (fields - ncols != ndcols)
-			{
-				FILE_STATUS &= false;
-				cerr << "LINE " << counter << ": ";
-				cerr << "Found " << fields << " fields. Expected "
-				     << ndcols << " headers + "
-				     << ncols << " data = "
-				     << ndcols + ncols << " fields.\n";
-			}
-			obs_rows++;
-		}
-
-		counter++;
-	}
-	while (fin.good());
-
-	if (obs_rows != nrows)
-	{
-		FILE_STATUS &= false;
-		cerr << "Found " << obs_rows << " lines of data. "
-		     << "Expected " << nrows << ".\n";
-	}
-
-	fin.close();
-
-	short **data;
-
-	if (FILE_STATUS && CHECK_FILE_DEEP)
-	{
-		fin.open(filename.c_str());
-		structure_data data;
-		FILE_STATUS &= readData_Check(fin, data, sort, ndcols, ndrows, nrows, ncols);
-		fin.close();
-	}
-
-
-	return FILE_STATUS;
-}
-
 
 int countFields(string str)
 {
@@ -455,26 +233,83 @@ int countFields(string str)
 	return counter;
 }
 
+structure_data *readData_stru2(string infile, int sort, int &nrows, int &ncols, string STRU_MISSING) {
+	int ndcols = -1;
+	int ndrows = -1;
+	nrows = -1;
+	ncols = -1;
 
-structure_data *readData_stru(string infile,
-                   int sort, int ndcols, int ndrows,
-                   int nrows, int ncols, string STRU_MISSING) {
+	string line;
 	igzstream fin;
 
 	fin.open(infile.c_str());
 
-	if (fin.fail())
-	{
-		cerr << "Could not open " << infile << " for reading.\n";
-		throw -1;
+	if (fin.fail()) {
+		LOG.err("ERROR: Could not open", infile);
+		throw - 1;
 	}
 
+	int totalRows = 0;
+	//int nloci = 0;
+	int currentCols = 0;
+	while (getline(fin, line)) {
+		totalRows++;
+		currentCols = countFields(line);
+		if (totalRows == 1) ncols = currentCols;
+
+		if (ndrows < 0 && currentCols != ncols) {
+			ndcols = currentCols - ncols;
+			ndrows = totalRows - 1;
+		}
+	}
+	nrows = totalRows - ndrows;
+
+	bool err = false;
+	if (!check_int_gt_0(nrows)) {
+		err = true;
+		LOG.err("ERROR: Number of chr must be > 0. Found", nrows);
+	}
+	LOG.log("Sample size:", nrows);
+
+	if (!check_int_gt_0(ndrows)) {
+		err = true;
+		LOG.err("ERROR: Non-data rows must be > 0. Found", ndrows);
+	}
+	LOG.log("Non-data header rows:", ndrows);
+
+	if (!check_int_gt_0(ncols)) {
+		err = true;
+		LOG.err("ERROR: Number of loci must be > 0. Found", ncols);
+	}
+	LOG.log("Number of loci:", ncols);
+
+	if (!check_int_gt_0(ndcols)) {
+		err = true;
+		LOG.err("ERROR: Non-data columns must be > 0. Found", ndcols);
+	}
+	LOG.log("Non-data header columns:", ndcols);
+
+	if (!check_sort_ge_ndcols(sort, ndcols)) {
+		err = true;
+		LOG.err("ERROR: Individual ID column must be in [ 1, ", ndcols, false);
+		LOG.err("].");
+	}
+
+	if (err) {
+		throw 0;
+	}
+
+	fin.close();
+	fin.clear();
+
+	fin.open(infile.c_str());
+
+
 	structure_data *data = new structure_data;
-	string line;
 	int nind = nrows / 2;
 	data->nind = nind;
 	data->data = new short*[nrows];
-	for(int i = 0; i < nrows; i++){
+	for (int i = 0; i < nrows; i++) {
 		data->data[i] = new short[ncols];
 	}
 	data->ind_names = new string[nind];
@@ -497,8 +332,68 @@ structure_data *readData_stru(string infile,
 		for (int i = 1; i <= ndcols; i++) {
 			fin >> field;
 			if (i == sort) key = field;
-			if(row % 2 == 0){
-				data->ind_names[row/2] = key;
+			if (row % 2 == 0) {
+				data->ind_names[row / 2] = key;
+			}
+		}
+
+		for (int locus = 0; locus < ncols; locus++) {
+			fin >> allele;
+			if (allele2code[locus].count(allele) == 0) {
+				lastAlleleCode[locus]++;
+				allele2code[locus][allele] = lastAlleleCode[locus];
+				data->data[row][locus] = lastAlleleCode[locus];
+			}
+			else {
+				data->data[row][locus] = allele2code[locus][allele];
+			}
+		}
+	}
+	fin.close();
+	return data;
+}
+
+structure_data *readData_stru(string infile, int sort, int ndcols, int ndrows, int nrows, int ncols, string STRU_MISSING) {
+	igzstream fin;
+
+	fin.open(infile.c_str());
+
+	if (fin.fail())
+	{
+		cerr << "Could not open " << infile << " for reading.\n";
+		throw - 1;
+	}
+
+	structure_data *data = new structure_data;
+	string line;
+	int nind = nrows / 2;
+	data->nind = nind;
+	data->data = new short*[nrows];
+	for (int i = 0; i < nrows; i++) {
+		data->data[i] = new short[ncols];
+	}
+	data->ind_names = new string[nind];
+
+	//toss out non-data rows
+	for (int i = 0; i < ndrows; i++) getline(fin, line);
+
+	data->nloci = ncols;
+	string field, key, allele;
+	//map<string, int> ind2index;
+	map<string, short> *allele2code = new map<string, short>[ncols];
+	short *lastAlleleCode = new short[ncols];
+	for (int i = 0; i < ncols; i++) {
+		allele2code[i][STRU_MISSING] = -9;
+		lastAlleleCode[i] = -1;
+	}
+	int index;
+	int indCount = -1;
+	for (int row = 0; row < nrows; row++) {
+		for (int i = 1; i <= ndcols; i++) {
+			fin >> field;
+			if (i == sort) key = field;
+			if (row % 2 == 0) {
+				data->ind_names[row / 2] = key;
 			}
 		}
 
@@ -526,6 +421,7 @@ structure_data *readData_stru(string infile,
 	return data;
 }
 
+/*
 void readData_ind_asd(igzstream &fin, structure_data &data,
                       int sort, int ndcols, int ndrows,
                       int nrows, int ncols, int STRU_MISSING)
@@ -595,12 +491,7 @@ void readData_ind_asd(igzstream &fin, structure_data &data,
 		{
 			index = put(data.ind_names, nind, key);
 			data.data[index] = new short[size];
-			//block = new double[size];
-			/*
-			block = new int[2];
-			block[0] = new int[size];
-			block[1] = new int[size];
-			*/
+
 			for (int i = 0; i < size; i++)
 			{
 				if (tmp[i] != STRU_MISSING) data.data[index][i] = tmp[i];
@@ -613,7 +504,7 @@ void readData_ind_asd(igzstream &fin, structure_data &data,
 
 	return;
 }
-
+*/
 void readData_ind_asd_tped_tfam(string tped_filename, string tfam_filename, structure_data &data,
                                 int &nrow, int &nloci, string TPED_MISSING)
 {
@@ -813,6 +704,27 @@ void readData_pop_freq(igzstream &fin, structure_data &data,
 	return;
 }
 
+int countFields(const string &str)
+{
+	string::const_iterator it;
+	int result;
+	int numFields = 0;
+	int seenChar = 0;
+	for (it = str.begin() ; it < str.end(); it++)
+	{
+		result = isspace(*it);
+		if (result == 0 && seenChar == 0)
+		{
+			numFields++;
+			seenChar = 1;
+		}
+		else if (result != 0)
+		{
+			seenChar = 0;
+		}
+	}
+	return numFields;
+}
 
 int search(string *s, int size, string key)
 {
@@ -836,6 +748,7 @@ int put(string *s, int size, string key)
 	cerr << "ERROR: This shouldn't be possible.  Try --check-file or --check-deep.\n";
 	exit(0);
 }
+
 
 // Split a NULL-terminated character array on a given character into
 // a vector of strings
