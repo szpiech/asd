@@ -71,10 +71,11 @@ structure_data *readData_stru2(string infile, int sort,
 void readData_ind_asd(igzstream &fin, structure_data &data,
                       int sort, int ndcols, int ndrows, int nrows, int ncols, string STRU_MISSING);
 */
-
+structure_data *readData_tped_tfam(string tped_filename, string tfam_filename, int &nrow, int &nloci, string TPED_MISSING);
+/*
 void readData_ind_asd_tped_tfam(string tped_filename, string tfam_filename, structure_data &data,
                                 int &nrow, int &nloci, string TPED_MISSING);
-
+*/
 int countFields(string junk);
 void readData_pop_freq(igzstream &fin, structure_data &data,
                        int sort, int ndcols, int ndrows,

@@ -112,10 +112,10 @@ void write_ibs_matrices(string outfile, int nind, int ncols, string *ind_names, 
 			LOG.err("ERROR: Could not open", ibs_fname[ibs]);
 			throw 0;
 		}
-		if (PRINT_PARTIAL){
+		if (PRINT_PARTIAL) {
 			out << nind << endl;
-			for (int i = 0; i < nind; i++){
-				for (int j = 0; j < nind; j++){
+			for (int i = 0; i < nind; i++) {
+				for (int j = 0; j < nind; j++) {
 					out << double(ncols) + double(NUM_LOCI[i][j]) << " ";
 				}
 				out << endl;
@@ -269,7 +269,6 @@ structure_data *readData_stru2(string infile, int sort, int &nrows, int &ncols, 
 		err = true;
 		LOG.err("ERROR: Number of chr must be > 0. Found", nrows);
 	}
-	LOG.log("Sample size:", nrows);
 
 	if (!check_int_gt_0(ndrows)) {
 		err = true;
@@ -281,7 +280,6 @@ structure_data *readData_stru2(string infile, int sort, int &nrows, int &ncols, 
 		err = true;
 		LOG.err("ERROR: Number of loci must be > 0. Found", ncols);
 	}
-	LOG.log("Number of loci:", ncols);
 
 	if (!check_int_gt_0(ndcols)) {
 		err = true;
@@ -319,7 +317,6 @@ structure_data *readData_stru2(string infile, int sort, int &nrows, int &ncols, 
 
 	data->nloci = ncols;
 	string field, key, allele;
-	//map<string, int> ind2index;
 	map<string, short> *allele2code = new map<string, short>[ncols];
 	short *lastAlleleCode = new short[ncols];
 	for (int i = 0; i < ncols; i++) {
@@ -353,6 +350,7 @@ structure_data *readData_stru2(string infile, int sort, int &nrows, int &ncols, 
 	return data;
 }
 
+/*
 structure_data *readData_stru(string infile, int sort, int ndcols, int ndrows, int nrows, int ncols, string STRU_MISSING) {
 	igzstream fin;
 
@@ -397,14 +395,6 @@ structure_data *readData_stru(string infile, int sort, int ndcols, int ndrows, i
 			}
 		}
 
-		/*
-		if (ind2index.count(key) == 0) {
-			indCount++;
-			ind2index[key] = indCount;
-		}
-		index = ind2index[key];
-		*/
-
 		for (int locus = 0; locus < ncols; locus++) {
 			fin >> allele;
 			if (allele2code[locus].count(allele) == 0) {
@@ -420,7 +410,7 @@ structure_data *readData_stru(string infile, int sort, int ndcols, int ndrows, i
 	fin.close();
 	return data;
 }
-
+*/
 /*
 void readData_ind_asd(igzstream &fin, structure_data &data,
                       int sort, int ndcols, int ndrows,
@@ -505,6 +495,91 @@ void readData_ind_asd(igzstream &fin, structure_data &data,
 	return;
 }
 */
+
+structure_data *readData_tped_tfam(string tped_filename, string tfam_filename, int &nrow, int &nloci, string TPED_MISSING) {
+	string junk;
+	nrow = 0;
+	nloci = 0;
+	igzstream famin, pedin;
+
+	pedin.open(tped_filename.c_str());
+	if (pedin.fail())
+	{
+		LOG.err("ERROR: Coult not open", tped_filename);
+		throw - 1;
+	}
+
+	famin.open(tfam_filename.c_str());
+	if (famin.fail())
+	{
+		LOG.err("ERROR: Coult not open", tfam_filename);
+		throw - 1;
+	}
+
+	while (getline(famin, junk)) nrow += 2;
+	famin.close();
+	famin.clear();
+
+	while (getline(pedin, junk)) nloci++;
+	pedin.close();
+	pedin.clear();
+
+	pedin.open(tped_filename.c_str());
+	famin.open(tfam_filename.c_str());
+
+	structure_data *data = new structure_data;
+	int nind = nrow / 2;
+	data->nind = nind;
+	data->data = new short*[2 * nind];
+	for (int i = 0; i < nrow; i++) {
+		data->data[i] = new short[nloci];
+	}
+	data->ind_names = new string[nind];
+
+	for (int i = 0; i < nind; i++)
+	{
+		famin >> junk;
+		famin >> data->ind_names[i];
+		getline(famin, junk);
+	}
+	famin.close();
+
+	data->nloci = nloci;
+
+	map<string, short> allele2code;
+	short lastAlleleCode = -1;
+
+	string allele;
+	for (int locus = 0; locus < nloci; locus++)
+	{
+		allele2code.clear();
+		allele2code[TPED_MISSING] = -9;
+		lastAlleleCode = -1;
+
+		pedin >> junk;
+		pedin >> junk;
+		pedin >> junk;
+		pedin >> junk;
+
+		for (int i = 0; i < 2 * nind; i++)
+		{
+			pedin >> allele;
+			if (allele2code.count(allele) == 0) {
+				lastAlleleCode++;
+				allele2code[allele] = lastAlleleCode;
+				data->data[i][locus] = lastAlleleCode;
+			}
+			else {
+				data->data[i][locus] = allele2code[allele];
+			}
+		}
+	}
+
+	pedin.close();
+	return data;
+}
+
+/*
 void readData_ind_asd_tped_tfam(string tped_filename, string tfam_filename, structure_data &data,
                                 int &nrow, int &nloci, string TPED_MISSING)
 {
@@ -569,11 +644,7 @@ void readData_ind_asd_tped_tfam(string tped_filename, string tfam_filename, stru
 	}
 
 	data.nloci = nloci;
-	//data.locus_names = new string[nloci];
-	/*
-	string *zeroAllele = new string[nloci];
-	for (int i = 0; i < nloci; i++) zeroAllele[i] = TPED_MISSING;
-	*/
+
 	string zeroAllele;
 	string allele1, allele2;
 	short alleleCount = 0;
@@ -614,7 +685,7 @@ void readData_ind_asd_tped_tfam(string tped_filename, string tfam_filename, stru
 
 	return;
 }
-
+*/
 
 void readData_pop_freq(igzstream &fin, structure_data &data,
                        int sort, int ndcols, int ndrows,

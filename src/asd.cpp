@@ -96,7 +96,8 @@ int main(int argc, char *argv[])
 
     if (argerr) return -1;
 
-    int nrows, ncols;
+    int nrows = 0;
+    int ncols = 0;
 
     structure_data *data;
     if (STRU) {
@@ -110,17 +111,24 @@ int main(int argc, char *argv[])
     else {
         try {
             //readData_ind_asd_tped_tfam(tped_filename, tfam_filename, data, nrows, ncols, TPED_MISSING);
+            data = readData_tped_tfam(tped_filename, tfam_filename, nrows, ncols, TPED_MISSING);
         }
         catch (...) {
             return -1;
         }
     }
 
+    LOG.log("Sample size:", nrows);
+    LOG.log("Number of loci:", ncols);
+
     int nind = nrows / 2;
 
     init_storage(nind, CALC_ALL_IBS);
 
     unsigned int *NUM_PER_THREAD = make_thread_partition(num_threads, ncols);
+
+    LOG.log("Starting calculations with", num_threads, false);
+    LOG.log(" threads.");
 
     work_order_t *order;
     pthread_t *peer = new pthread_t[num_threads];
