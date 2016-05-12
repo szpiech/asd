@@ -1,7 +1,13 @@
 # Makefile for asd
 
-G++FLAG = -g
+#G++FLAG = -g
+
+#osx
+G++FLAG = -fast
+
+#linux
 #G++FLAG = -O3
+
 
 asd : asd.o param_t.o gzstream.o asd-cli.o errlog.o asd-data.o asd-dist.o
 	g++ -o asd asd.o param_t.o gzstream.o asd-cli.o errlog.o asd-data.o asd-dist.o -lm -lpthread -lz
