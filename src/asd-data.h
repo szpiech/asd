@@ -61,8 +61,12 @@ typedef struct
 	int nloci;
 } population_data;
 
+structure_data *readData_stru(string infile,
+                   int sort, int ndcols, int ndrows,
+                   int nrows, int ncols, string STRU_MISSING);
+
 void readData_ind_asd(igzstream &fin, structure_data &data,
-                      int sort, int ndcols, int ndrows, int nrows, int ncols, int STRU_MISSING);
+                      int sort, int ndcols, int ndrows, int nrows, int ncols, string STRU_MISSING);
 
 void readData_ind_asd_tped_tfam(string tped_filename, string tfam_filename, structure_data &data,
                                 int &nrow, int &nloci, string TPED_MISSING);

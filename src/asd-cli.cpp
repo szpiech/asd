@@ -63,7 +63,7 @@ const bool DEFAULT_FULL_LOG = false;
 const string HELP_FULL_LOG = "Same as --full but transforms by -ln(ps).";
 
 const string ARG_STRU_MISSING = "--stru-mis";
-const int DEFAULT_STRU_MISSING = -9;
+const string DEFAULT_STRU_MISSING = "-9";
 const string HELP_STRU_MISSING = "For stru files, set the missing data value (must be an integer, default is -9).";
 
 const string ARG_TPED_MISSING = "--tped-mis";

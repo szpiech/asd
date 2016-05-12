@@ -54,7 +54,6 @@ bool init_storage(int nind, bool CALC_ALL_IBS) {
 	return true;
 }
 
-
 bool finalize_calculations(int nind, int ncols, bool CALC_ALL_IBS) {
 	for (int i = 0; i < nind; i++)
 	{
@@ -197,14 +196,14 @@ void write_dist_matrix(string outfile, int nind, int ncols, string *ind_names, b
 			if (PRINT_FULL_LOG)
 			{
 				out << 0 - log(double(DIST_MAT[i][j]) /
-				                (double(ncols) + double(NUM_LOCI[i][j])))
-				     << " ";
+				               (double(ncols) + double(NUM_LOCI[i][j])))
+				    << " ";
 			}
 			else if (PRINT_FULL)
 			{
 				out << 1 - (double(DIST_MAT[i][j]) /
-				             (double(ncols) + double(NUM_LOCI[i][j])))
-				     << " ";
+				            (double(ncols) + double(NUM_LOCI[i][j])))
+				    << " ";
 			}
 			else out << DIST_MAT[i][j] << " ";
 		}
@@ -457,178 +456,74 @@ int countFields(string str)
 }
 
 
-//Yes, this is really dumb for a lot of reasons.
-void output(void *order)
-{
-	output_order_t *p = (output_order_t *)order;
-	ostream *out = p->out;
-	bool PRINT_FULL = p->PRINT_FULL;
-	bool PRINT_FULL_LOG = p->PRINT_FULL_LOG;
-	string *ind_names = p->ind_names;
-	int ncols = p->ncols;
-	string type = p->type;
-	int nind = p->nind;
+structure_data *readData_stru(string infile,
+                   int sort, int ndcols, int ndrows,
+                   int nrows, int ncols, string STRU_MISSING) {
+	igzstream fin;
 
-	if (type.compare("dist") == 0)
+	fin.open(infile.c_str());
+
+	if (fin.fail())
 	{
-		if (!PRINT_FULL && !PRINT_FULL_LOG)
-		{
-			for (int i = 0; i < nind; i++)
-			{
-				for (int j = 0; j < nind; j++)
-				{
-					*out << double(ncols) + double(NUM_LOCI[i][j]) << " ";
-				}
-				*out << endl;
+		cerr << "Could not open " << infile << " for reading.\n";
+		throw -1;
+	}
+
+	structure_data *data = new structure_data;
+	string line;
+	int nind = nrows / 2;
+	data->nind = nind;
+	data->data = new short*[nrows];
+	for(int i = 0; i < nrows; i++){
+		data->data[i] = new short[ncols];
+	}
+	data->ind_names = new string[nind];
+
+	//toss out non-data rows
+	for (int i = 0; i < ndrows; i++) getline(fin, line);
+
+	data->nloci = ncols;
+	string field, key, allele;
+	//map<string, int> ind2index;
+	map<string, short> *allele2code = new map<string, short>[ncols];
+	short *lastAlleleCode = new short[ncols];
+	for (int i = 0; i < ncols; i++) {
+		allele2code[i][STRU_MISSING] = -9;
+		lastAlleleCode[i] = -1;
+	}
+	int index;
+	int indCount = -1;
+	for (int row = 0; row < nrows; row++) {
+		for (int i = 1; i <= ndcols; i++) {
+			fin >> field;
+			if (i == sort) key = field;
+			if(row % 2 == 0){
+				data->ind_names[row/2] = key;
 			}
-			*out << endl;
 		}
 
-		for (int i = 0; i < nind; i++)
-		{
-			*out << ind_names[i] << " ";
+		/*
+		if (ind2index.count(key) == 0) {
+			indCount++;
+			ind2index[key] = indCount;
 		}
-		*out << endl;
+		index = ind2index[key];
+		*/
 
-		for (int i = 0; i < nind; i++)
-		{
-			*out << ind_names[i] << " ";
-			for (int j = 0; j < nind ; j++)
-			{
-				if (PRINT_FULL_LOG)
-				{
-					*out << 0 - log(double(DIST_MAT[i][j]) /
-					                (double(ncols) + double(NUM_LOCI[i][j])))
-					     << " ";
-				}
-				else if (PRINT_FULL)
-				{
-					*out << 1 - (double(DIST_MAT[i][j]) /
-					             (double(ncols) + double(NUM_LOCI[i][j])))
-					     << " ";
-				}
-				else *out << DIST_MAT[i][j] << " ";
+		for (int locus = 0; locus < ncols; locus++) {
+			fin >> allele;
+			if (allele2code[locus].count(allele) == 0) {
+				lastAlleleCode[locus]++;
+				allele2code[locus][allele] = lastAlleleCode[locus];
+				data->data[row][locus] = lastAlleleCode[locus];
 			}
-			*out << endl;
+			else {
+				data->data[row][locus] = allele2code[locus][allele];
+			}
 		}
 	}
-	else if (type.compare("ibs0") == 0)
-	{
-		if (!PRINT_FULL && !PRINT_FULL_LOG)
-		{
-			for (int i = 0; i < nind; i++)
-			{
-				for (int j = 0; j < nind; j++)
-				{
-					*out << double(ncols) + double(NUM_LOCI[i][j]) << " ";
-				}
-				*out << endl;
-			}
-			*out << endl;
-		}
-
-		for (int i = 0; i < nind; i++)
-		{
-			*out << ind_names[i] << " ";
-		}
-		*out << endl;
-
-		for (int i = 0; i < nind; i++)
-		{
-			*out << ind_names[i] << " ";
-			for (int j = 0; j < nind ; j++)
-			{
-				if (PRINT_FULL_LOG || PRINT_FULL)
-				{
-					*out << double(IBS_0_MAT[i][j]) /
-					     (double(ncols) + double(NUM_LOCI[i][j])) << " ";
-				}
-				else *out << IBS_0_MAT[i][j] << " ";
-
-			}
-			*out << endl;
-		}
-	}
-	else if (type.compare("ibs1") == 0)
-	{
-		if (!PRINT_FULL && !PRINT_FULL_LOG)
-		{
-			for (int i = 0; i < nind; i++)
-			{
-				for (int j = 0; j < nind; j++)
-				{
-					*out << double(ncols) + double(NUM_LOCI[i][j]) << " ";
-				}
-				*out << endl;
-			}
-			*out << endl;
-		}
-
-		for (int i = 0; i < nind; i++)
-		{
-			*out << ind_names[i] << " ";
-		}
-		*out << endl;
-
-		for (int i = 0; i < nind; i++)
-		{
-			*out << ind_names[i] << " ";
-			for (int j = 0; j < nind ; j++)
-			{
-				if (PRINT_FULL_LOG || PRINT_FULL)
-				{
-					*out << double(IBS_1_MAT[i][j]) /
-					     (double(ncols) + double(NUM_LOCI[i][j])) << " ";
-				}
-				else *out << IBS_1_MAT[i][j] << " ";
-
-			}
-			*out << endl;
-		}
-	}
-	else if (type.compare("ibs2") == 0)
-	{
-		if (!PRINT_FULL && !PRINT_FULL_LOG)
-		{
-			for (int i = 0; i < nind; i++)
-			{
-				for (int j = 0; j < nind; j++)
-				{
-					*out << double(ncols) + double(NUM_LOCI[i][j]) << " ";
-				}
-				*out << endl;
-			}
-			*out << endl;
-		}
-
-		for (int i = 0; i < nind; i++)
-		{
-			*out << ind_names[i] << " ";
-		}
-		*out << endl;
-
-		for (int i = 0; i < nind; i++)
-		{
-			*out << ind_names[i] << " ";
-			for (int j = 0; j < nind ; j++)
-			{
-				if (PRINT_FULL_LOG || PRINT_FULL)
-				{
-					*out << double(IBS_2_MAT[i][j]) /
-					     (double(ncols) + double(NUM_LOCI[i][j])) << " ";
-				}
-				else *out << IBS_2_MAT[i][j] << " ";
-
-			}
-			*out << endl;
-		}
-	}
-	else
-	{
-		cerr << "UNKNOWN TYPE: " << type << endl;
-		exit(-1);
-	}
-	return;
+	fin.close();
+	return data;
 }
 
 void readData_ind_asd(igzstream &fin, structure_data &data,

@@ -71,7 +71,7 @@ extern const bool DEFAULT_FULL_LOG;
 extern const string HELP_FULL_LOG;
 
 extern const string ARG_STRU_MISSING;
-extern const int DEFAULT_STRU_MISSING;
+extern const string DEFAULT_STRU_MISSING;
 extern const string HELP_STRU_MISSING;
 
 extern const string ARG_TPED_MISSING;
