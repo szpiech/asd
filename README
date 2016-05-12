@@ -1,89 +1,81 @@
+asd is a multi-threaded program to quickly compute pairwise allele sharing distances between diploid individuals with an arbitrary number of alleles per locus.  asd reads TPED/TFAM and STRU formatted files and will load gzipped files without first requiring decompression.
+
 usage
 
-./asd --stru <filename>.stru --nloci <number of loci> --nchr <number of chromosomes> --ndc <number of non-data cols> --ndr <number of non-data rows> --id-col <column where individual names are>
+./asd --stru <filename> --id-col <column where individual names are>
 
 or
 
 ./asd --tped <filename>.tped --tfam <filename>.tfam
 
-optional flags --full, --full-log, --ibs-all, --out, --check-file, --check-deep, --stru-mis, --tped-mis
+optional flags --partial, --log, --ibs-all, --out, --missing-stru, --missing-tped
 
-For STRU files, alleles are assumed to be coded 0/1 with missing data as -9 (change with --stru-mis).  TPED/TFAM files are assumed to be biallelic but can be coded with arbitrary alleles.  Missing data as coded 0 (change with --tped-mis).  If you encounter segfaults, run with --check-file or --check-deep to make sure there is not a problem with the datafile (only works with STRU).  Other segfaults should be reported to <szpiech@gmail.com>.
+asd v1.0.0
+----------Command Line Arguments----------
 
-26AUG2014 - asd can read gzipped stru and gzipped tped/tfam files.  The program now depends on zlib.
+--help <bool>: Prints this help dialog.
+	Default: false
 
-Command line arguments:
+--ibs-all <bool>: Set to output all IBS sharing matrices.
+	Default: false
 
-	General
+--id-col <int>: Column where individual IDs are. (stru files only)
+	Default: 1
 
-	--threads <int>	 : number of threads to spawn (each thread will take an equal 
-	       	  	 	 : portion of the workload to do), note that each core/processor
-	      		 	 : can only process one thread at a time, with the exception
-	       			 : of the new workstations, which can process two simultaneously
-	       		 	 : per core
-	--full      	 : prints the allele sharing matrix to stdout if set
-	    			 : if you do not set --full you will get two r/2 x r/2 matrices
-	    			 : the first is the number of loci used for each pairwise comparison
-	    			 : the second is the untransformed IBS matrix
-	    			 : in order to recover the allele sharing distance matrix
-	    			 : divide this number by the number of loci in the appropriate
-	    			 : cell, and then transform by 1-(ps)
-	--full-log  	 : same as --full but calculates -ln(ps)
-	--ibs-all   	 : produces three matricies for IBS 0/1/2 counts
-	      		 	 : can be run with or without --full/--full-log
-	--out <str>      : outputs results to file(s) named
-		        	 : <string>.dist is the allele sharing distance matrix
-		        	 : <string>.ibs0 is the IBS 0 pairwise matrix (if --ibs-all set)
-		        	 : <string>.ibs1 is the IBS 1 pairwise matrix (if --ibs-all set)
-		        	 : <string>.ibs2 is the IBS 2 pairwise matrix (if --ibs-all set)
+--log <bool>: Transforms allele sharing distance by -ln(ps) instead of 1-(ps).
+	Default: false
 
-	Structure data
+--missing-stru <string>: For stru files, set the missing data value.
+	Default: -9
 
-	--stru <str>     : The input data filename (stru format), data 
-       			 	 : must be biallelic and coded 0/1 (-9 for missing data). File can be gzipped.
-	--stru-mis <int> : For stru files, set the missing data value (must be an integer, default is -9).
-	--nloci <int>    : the number of loci in your datafile
-	--nchr <int>     : the number of chromosomes in your datafile
-               		 : (2N, where N is # of individuals)
-	--ndc <int> 	 : the number of nondata columns before the data(stru files only)
-	--ndr <int> 	 : the number of nondata rows before the data (including loci names)(stru files only)
-	--id-col <int>   : the nondata column where individual names are (stru files only)
-	--check-file 	 : a quick check for data format integrity (no calculations, no support for tped/tfam)
-	--check-deep	 : a more detailed check for data format integrity (no calculations, no support for tped/tfam)
+--missing-tped <string>: For stru files, set the missing data value.
+	Default: 0
 
-	TPED/TFAM data
+--out <string>: Basename for output files.
+	Default: outfile
 
-	--tped <str>	 : The input data filename (tped format), also 
-       			 	 : requires a .tfam file (--tfam).  Data must be biallelic, 
-			 		 : but alleles can be arbitrarily coded.  Missing data must be -9. File can be gzipped.
-	--tfam <str>     : The input data filename (tfam format), also requires a .tped file (--tped). File can be gzipped.
-	--tped-mis <str> : For stru files, set the missing data value (default is 0).
+--partial <bool>: If set, outputs two r/2 x r/2 matrices. The first is the number of loci used for each pairwise comparison, and the second is the untransformed IBS matrix. In order to recover the allele sharing distance matrix divide the untransformed IBS counts by the number of loci in the appropriate cell, and then transform by 1-(ps).
+	Default: false
 
-NOTE: Multi-dimensional scaling plots can be created easily in R with the following commands (assuming --full or --full-log is used):
+--stru <string>: The input data filename (stru format), data must be biallelic and coded 0/1 (-9 for missing data or change with --stru-mis).
+	Default: __none
 
-      data<-read.table("<string>.dist",header=TRUE)
+--tfam <string>: The input data filename (tfam format), also requires a .tped file (--tped).
+	Default: __none
+
+--threads <int>: Number of threads to spawn for faster calculation.
+	Default: 1
+
+--tped <string>: The input data filename (tped format), also requires a .tfam file (--tfam).  Data must be biallelic, but alleles can be arbitrarily coded.  Missing data is coded 0 (or change with --tped-mis).
+	Default: __none
+
+
+NOTE: Multi-dimensional scaling plots can be created easily in R with the following commands (assuming --partial was not used):
+
+      data<-read.table("<outfile>.asd.dist",header=TRUE)
       data.mds<-cmdscale(data)
       plot(data.mds)
 
 A toy example with no missing data:
 
-./asd --stru test_data_1.stru --nchr 12 --nloci 5 --ndc 1 --ndr 1 --id-col 1 --full-log
+./asd --stru test_data_1.stru --id-col 1 --log
 
 output:
 
 ind0 ind1 ind2 ind3 ind4 ind5 
-ind0 0 0.693147 0.356675 0.223144 0.356675 0.693147 
-ind1 0.693147 0 0.223144 0.356675 0.510826 1.60944 
-ind2 0.356675 0.223144 0 0.105361 0.223144 0.916291 
-ind3 0.223144 0.356675 0.105361 0 0.356675 0.693147 
-ind4 0.356675 0.510826 0.223144 0.356675 0 0.916291 
-ind5 0.693147 1.60944 0.916291 0.693147 0.916291 0 
+ind0 0 0.5 0.3 0.2 0.3 0.5 
+ind1 0.5 0 0.2 0.3 0.4 0.8 
+ind2 0.3 0.2 0 0.1 0.2 0.6 
+ind3 0.2 0.3 0.1 0 0.3 0.5 
+ind4 0.3 0.4 0.2 0.3 0 0.6 
+ind5 0.5 0.8 0.6 0.5 0.6 0 
 
 
-./asd --stru test_data_1.stru --nchr 12 --nloci 5 --ndc 1 --ndr 1 --id-col 1
+./asd --stru test_data_1.stru --id-col 1 --partial
 
 output:
 
+6
 5 5 5 5 5 5 
 5 5 5 5 5 5 
 5 5 5 5 5 5 
@@ -102,36 +94,35 @@ ind5 2.5 1 2 2.5 2 5
 
 A toy example with missing data:
 
-./asd --stru test_data_2.stru --nchr 12 --nloci 5 --ndc 1 --ndr 1 --id-col 1 --full-log
+./asd --stru test_data_2.stru --id-col 1
 
 output:
 
 ind0 ind1 ind2 ind3 ind4 ind5 
-ind0 0 0.693147 0.287682 0.133531 0.405465 0.182322 
-ind1 0.693147 0 0.133531 0.287682 0.405465 1.09861 
-ind2 0.287682 0.133531 0 0.105361 0.133531 0.693147 
-ind3 0.133531 0.287682 0.105361 0 0.287682 0.470004 
-ind4 0.405465 0.405465 0.133531 0.287682 0 0.980829 
-ind5 0.182322 1.09861 0.693147 0.470004 0.980829 0 
+ind0 0 0.5 0.25 0.125 0.333333 0.166667 
+ind1 0.5 0 0.125 0.25 0.333333 0.666667 
+ind2 0.25 0.125 0 0.1 0.125 0.5 
+ind3 0.125 0.25 0.1 0 0.25 0.375 
+ind4 0.333333 0.333333 0.125 0.25 0 0.625 
+ind5 0.166667 0.666667 0.5 0.375 0.625 0 
 
 
-
-./asd --stru test_data_2.stru --nchr 12 --nloci 5 --ndc 1 --ndr 1 --id-col 1
-
+./asd --stru test_data_2.stru --id-col 1 --partial
 
 output:
 
-5 3 4 4 3 3 
-3 5 4 4 3 3 
+6
+4 3 4 4 3 3 
+3 4 4 4 3 3 
 4 4 5 5 4 4 
 4 4 5 5 4 4 
-3 3 4 4 5 4 
-3 3 4 4 4 5 
+3 3 4 4 4 4 
+3 3 4 4 4 4 
 
 ind0 ind1 ind2 ind3 ind4 ind5 
-ind0 5 1.5 3 3.5 2 2.5 
-ind1 1.5 5 3.5 3 2 1 
+ind0 4 1.5 3 3.5 2 2.5 
+ind1 1.5 4 3.5 3 2 1 
 ind2 3 3.5 5 4.5 3.5 2 
 ind3 3.5 3 4.5 5 3 2.5 
-ind4 2 2 3.5 3 5 1.5 
-ind5 2.5 1 2 2.5 1.5 5 
+ind4 2 2 3.5 3 4 1.5 
+ind5 2.5 1 2 2.5 1.5 4 
