@@ -58,7 +58,7 @@ NOTE: Multi-dimensional scaling plots can be created easily in R with the follow
 
 A toy example with no missing data:
 
-./asd --stru test_data_1.stru --id-col 1 --log
+./asd --stru test_data_1.stru --id-col 1
 
 output:
 
