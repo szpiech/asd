@@ -120,7 +120,7 @@ int main(int argc, char *argv[])
     else {
         try {
             if (BIALLELIC) {
-                //data = readData_tped_tfam(tped_filename, tfam_filename, nrows, ncols, TPED_MISSING);
+                data = readData_tped_tfam(tped_filename, tfam_filename, nrows, ncols, TPED_MISSING);
             }
             else {
                 data = readData_tped_tfam2(tped_filename, tfam_filename, nrows, ncols, TPED_MISSING);

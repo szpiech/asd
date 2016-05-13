@@ -725,115 +725,114 @@ structure_data *readData_tped_tfam2(string tped_filename, string tfam_filename, 
 	return data;
 }
 
-/*
-void readData_ind_asd_tped_tfam(string tped_filename, string tfam_filename, structure_data &data,
-                                int &nrow, int &nloci, string TPED_MISSING)
+
+structure_data *readData_tped_tfam(string tped_filename, string tfam_filename, int &nrow, int &nloci, string TPED_MISSING)
 {
 	string junk;
-
+	nrow = 0;
+	nloci = 0;
 	igzstream famin, pedin;
 
 	pedin.open(tped_filename.c_str());
 	if (pedin.fail())
 	{
-		cerr << "Could not open " << tped_filename << " for reading1.\n";
+		LOG.err("ERROR: Coult not open", tped_filename);
 		throw - 1;
 	}
 
 	famin.open(tfam_filename.c_str());
 	if (famin.fail())
 	{
-		cerr << "Could not open " << tfam_filename << " for reading1.\n";
+		LOG.err("ERROR: Coult not open", tfam_filename);
 		throw - 1;
 	}
 
-	//int start = famin.tellg();
 	while (getline(famin, junk)) nrow += 2;
 	famin.close();
 	famin.clear();
-	//famin.seekg(start);
 
-	//start = pedin.tellg();
 	while (getline(pedin, junk)) nloci++;
 	pedin.close();
 	pedin.clear();
-	//pedin.seekg(start);
 
 	pedin.open(tped_filename.c_str());
-	if (pedin.fail())
-	{
-		cerr << "Could not open " << tped_filename << " for reading2.\n";
-		throw - 1;
-	}
-
 	famin.open(tfam_filename.c_str());
-	if (famin.fail())
-	{
-		cerr << "Could not open " << tfam_filename << " for reading2.\n";
-		throw - 1;
-	}
+
+	structure_data *data = new structure_data;
 
 	int nind = nrow / 2;
 
-	cerr << "Reading " << nind << " diploid individuals at " << nloci << " loci.\n";
+	//cerr << "Reading " << nind << " diploid individuals at " << nloci << " loci.\n";
 
-	data.nind = nind;
-	data.data = new short*[nind];
-	for (int i = 0; i < nind; i++) data.data[i] = new short[nloci];
-	data.ind_names = new string[nind];
+	data->nind = nind;
+	data->data = new short*[nind];
+	for (int i = 0; i < nind; i++) data->data[i] = new short[nloci];
+	data->ind_names = new string[nind];
 
 	for (int i = 0; i < nind; i++)
 	{
 		famin >> junk;
-		famin >> data.ind_names[i];
+		famin >> data->ind_names[i];
 		getline(famin, junk);
 	}
 
-	data.nloci = nloci;
+	data->nloci = nloci;
 
-	string zeroAllele;
+	map<string, short> allele2code;
+	short lastAlleleCode = -1;
+
 	string allele1, allele2;
-	short alleleCount = 0;
+	short genotypeCode;
 	for (int locus = 0; locus < nloci; locus++)
 	{
-		zeroAllele = TPED_MISSING;
+		allele2code.clear();
+		allele2code[TPED_MISSING] = -9;
+		lastAlleleCode = -1;
+
 		pedin >> junk;
-		//pedin >> data.locus_names[locus];
 		pedin >> junk;
 		pedin >> junk;
 		pedin >> junk;
 
 		for (int ind = 0; ind < nind; ind++)
 		{
-			alleleCount = 0;
+			//alleleCount = 0;
 			pedin >> allele1;
 			pedin >> allele2;
-			if (allele1.compare(TPED_MISSING) == 0 || allele2.compare(TPED_MISSING) == 0)
-			{
-				data.data[ind][locus] = -9;
+
+			if (allele2code.count(allele1) == 0) {
+				lastAlleleCode++;
+				if (lastAlleleCode > 1) {
+					LOG.err("ERORR: --biallelic flag set, but found more than 2 alleles at locus", locus + 1);
+					throw - 1;
+				}
+				allele2code[allele1] = lastAlleleCode;
 			}
-			else if (zeroAllele.compare(TPED_MISSING) == 0)
-			{
-				zeroAllele = allele1;
-				if (allele2.compare(zeroAllele) != 0) alleleCount++;
-				data.data[ind][locus] = alleleCount;
+
+			if (allele2code.count(allele2) == 0) {
+				lastAlleleCode++;
+				if (lastAlleleCode > 1) {
+					LOG.err("ERORR: --biallelic flag set, but found more than 2 alleles at locus", locus + 1);
+					throw - 1;
+				}
+				allele2code[allele2] = lastAlleleCode;
 			}
-			else
-			{
-				if (allele1.compare(zeroAllele) != 0) alleleCount++;
-				if (allele2.compare(zeroAllele) != 0) alleleCount++;
-				data.data[ind][locus] = alleleCount;
+
+			genotypeCode = allele2code[allele1] + allele2code[allele2];
+			if (genotypeCode < 0) {
+				data->data[ind][locus] = allele2code[TPED_MISSING];
+			}
+			else {
+				data->data[ind][locus] = genotypeCode;
 			}
 		}
 	}
 
-	//delete [] zeroAllele;
-
-	return;
+	return data;
 }
-*/
 
-void readData_pop_freq(igzstream &fin, structure_data &data,
+
+void readData_pop_freq(igzstream & fin, structure_data & data,
                        int sort, int ndcols, int ndrows,
                        int nrows, int ncols)
 {
@@ -921,7 +920,7 @@ void readData_pop_freq(igzstream &fin, structure_data &data,
 	return;
 }
 
-int countFields(const string &str)
+int countFields(const string & str)
 {
 	string::const_iterator it;
 	int result;
@@ -943,7 +942,7 @@ int countFields(const string &str)
 	return numFields;
 }
 
-int search(string *s, int size, string key)
+int search(string * s, int size, string key)
 {
 	for (int i = 0; i < size; i++)
 	{
@@ -952,7 +951,7 @@ int search(string *s, int size, string key)
 	return -9;
 }
 
-int put(string *s, int size, string key)
+int put(string * s, int size, string key)
 {
 	for (int i = 0; i < size; i ++)
 	{
@@ -971,7 +970,7 @@ int put(string *s, int size, string key)
 // a vector of strings
 // The vector is passed by reference and cleared each time
 // The number of strings split out is returned
-short int *split_int(igzstream &fin, int fields)
+short int *split_int(igzstream & fin, int fields)
 {
 	/*
 	vector<string> v;
