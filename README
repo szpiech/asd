@@ -13,6 +13,9 @@ optional flags --partial, --log, --ibs-all, --out, --missing-stru, --missing-tpe
 asd v1.0.0
 ----------Command Line Arguments----------
 
+--biallelic <bool>: Set for more efficient computations when all loci are biallelic.
+	Default: false
+	
 --help <bool>: Prints this help dialog.
 	Default: false
 
