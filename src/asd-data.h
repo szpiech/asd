@@ -5,6 +5,7 @@
 #include <iostream>
 #include <cmath>
 #include <sstream>
+#include <pthread.h>
 #include "gzstream.h"
 #include "param_t.h"
 #include "asd-cli.h"

@@ -36,6 +36,10 @@ using namespace std;
 
 int main(int argc, char *argv[])
 {
+    #ifdef PTW32_STATIC_LIB
+        pthread_win32_process_attach_np(); 
+    #endif
+    
     param_t *params = getCLI(argc, argv);
     if (params == NULL) return 0;
 
@@ -183,6 +187,11 @@ int main(int argc, char *argv[])
 
     delete [] NUM_PER_THREAD;
     delete [] peer;
+
+    #ifdef PTW32_STATIC_LIB
+        pthread_win32_process_detach_np();
+    #endif
+
     return 0;
 }
 
