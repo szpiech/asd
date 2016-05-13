@@ -1,4 +1,4 @@
-asd is a multi-threaded program to quickly compute pairwise allele sharing distances between diploid individuals with an arbitrary number of alleles per locus.  asd reads TPED/TFAM and STRU formatted files and will load gzipped files without first requiring decompression.
+asd is a multi-threaded program to quickly compute pairwise allele sharing distances between diploid individuals with an arbitrary number of alleles per locus.  asd reads TPED/TFAM and STRU formatted files and will load gzipped files without first requiring decompression. If your data are strictly biallelic, you may use the --biallelic feature for better efficiency.
 
 usage
 
@@ -15,7 +15,7 @@ asd v1.0.0
 
 --biallelic <bool>: Set for more efficient computations when all loci are biallelic.
 	Default: false
-	
+
 --help <bool>: Prints this help dialog.
 	Default: false
 
