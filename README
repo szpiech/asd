@@ -8,7 +8,7 @@ or
 
 ./asd --tped <filename>.tped --tfam <filename>.tfam
 
-optional flags --partial, --log, --ibs-all, --out, --missing-stru, --missing-tped
+optional flags --partial, --log, --ibs-all, --out, --missing-stru, --missing-tped, --biallelic
 
 asd v1.0.0
 ----------Command Line Arguments----------
