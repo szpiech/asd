@@ -46,6 +46,10 @@ const string ARG_TPED_MISSING = "--missing-tped";
 const string DEFAULT_TPED_MISSING = "0";
 const string HELP_TPED_MISSING = "For stru files, set the missing data value.";
 
+const string ARG_BIALLELIC = "--biallelic";
+const bool DEFAULT_BIALLELIC = false;
+const string HELP_BIALLELIC = "Set for more efficient computations when all loci are biallelic.";
+
 string getCommandLineString(int argc, char *argv[])
 {
 	string str = argv[0];
@@ -69,6 +73,7 @@ param_t *getCLI(int argc, char *argv[])
 	params->addFlag(ARG_LOG, DEFAULT_LOG, "", HELP_LOG);
 	params->addFlag(ARG_STRU_MISSING, DEFAULT_STRU_MISSING, "", HELP_STRU_MISSING);
 	params->addFlag(ARG_TPED_MISSING, DEFAULT_TPED_MISSING, "", HELP_TPED_MISSING);
+	params->addFlag(ARG_BIALLELIC, DEFAULT_BIALLELIC, "", HELP_BIALLELIC);
 	
 	params->setPreamble("asd v" + VERSION);
 

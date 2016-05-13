@@ -233,6 +233,152 @@ int countFields(string str)
 	return counter;
 }
 
+structure_data *readData_stru(string infile, int sort, int &nrows, int &ncols, string STRU_MISSING) {
+	int ndcols = -1;
+	int ndrows = -1;
+	nrows = -1;
+	ncols = -1;
+
+	string line;
+	igzstream fin;
+
+	fin.open(infile.c_str());
+
+	if (fin.fail()) {
+		LOG.err("ERROR: Could not open", infile);
+		throw - 1;
+	}
+
+	int totalRows = 0;
+	//int nloci = 0;
+	int currentCols = 0;
+	while (getline(fin, line)) {
+		totalRows++;
+		currentCols = countFields(line);
+		if (totalRows == 1) ncols = currentCols;
+
+		if (ndrows < 0 && currentCols != ncols) {
+			ndcols = currentCols - ncols;
+			ndrows = totalRows - 1;
+		}
+	}
+	nrows = totalRows - ndrows;
+
+	bool err = false;
+	if (!check_int_gt_0(nrows)) {
+		err = true;
+		LOG.err("ERROR: Number of chr must be > 0. Found", nrows);
+	}
+
+	if (!check_int_gt_0(ndrows)) {
+		err = true;
+		LOG.err("ERROR: Non-data rows must be > 0. Found", ndrows);
+	}
+	LOG.log("Non-data header rows:", ndrows);
+
+	if (!check_int_gt_0(ncols)) {
+		err = true;
+		LOG.err("ERROR: Number of loci must be > 0. Found", ncols);
+	}
+
+	if (!check_int_gt_0(ndcols)) {
+		err = true;
+		LOG.err("ERROR: Non-data columns must be > 0. Found", ndcols);
+	}
+	LOG.log("Non-data header columns:", ndcols);
+
+	if (!check_sort_ge_ndcols(sort, ndcols)) {
+		err = true;
+		LOG.err("ERROR: Individual ID column must be in [ 1, ", ndcols, false);
+		LOG.err("].");
+	}
+
+	if (err) {
+		throw 0;
+	}
+
+	fin.close();
+	fin.clear();
+
+	fin.open(infile.c_str());
+
+
+	structure_data *data = new structure_data;
+	int nind = nrows / 2;
+	data->nind = nind;
+	data->data = new short*[nind];
+	for (int i = 0; i < nind; i++) {
+		data->data[i] = new short[ncols];
+	}
+	data->ind_names = new string[nind];
+
+	//toss out non-data rows
+	for (int i = 0; i < ndrows; i++) getline(fin, line);
+
+	data->nloci = ncols;
+
+	map<string, short> *allele2code = new map<string, short>[ncols];
+	short *lastAlleleCode = new short[ncols];
+	for (int i = 0; i < ncols; i++) {
+		allele2code[i][STRU_MISSING] = -9;
+		lastAlleleCode[i] = -1;
+	}
+
+	int index;
+	int indCount = -1;
+	string field, key, allele1, allele2, line1, line2;
+	stringstream sin1, sin2;
+	short genotypeCode;
+	for (int ind = 0; ind < nind; ind++) {
+		getline(fin, line1);
+		sin1 << line1;
+		getline(fin, line2);
+		sin2 << line2;
+
+		for (int i = 1; i <= ndcols; i++) {
+			sin1 >> field;
+			sin2 >> field;
+			if (i == sort) {
+				key = field;
+				data->ind_names[ind] = key;
+			}
+		}
+
+		for (int locus = 0; locus < ncols; locus++) {
+			sin1 >> allele1;
+			sin2 >> allele2;
+
+			if (allele2code[locus].count(allele1) == 0) {
+				lastAlleleCode[locus]++;
+				if (lastAlleleCode[locus] > 1) {
+					LOG.err("ERORR: --biallelic flag set, but found more than 2 alleles at locus", locus + 1);
+					throw - 1;
+				}
+				allele2code[locus][allele1] = lastAlleleCode[locus];
+			}
+
+			if (allele2code[locus].count(allele2) == 0) {
+				lastAlleleCode[locus]++;
+				if (lastAlleleCode[locus] > 1) {
+					LOG.err("ERORR: --biallelic flag set, but found more than 2 alleles at locus", locus + 1);
+					throw - 1;
+				}
+				allele2code[locus][allele2] = lastAlleleCode[locus];
+			}
+
+			genotypeCode = allele2code[locus][allele1] + allele2code[locus][allele2];
+			if (genotypeCode < 0) {
+				data->data[ind][locus] = allele2code[locus][STRU_MISSING];
+			}
+			else {
+				data->data[ind][locus] = genotypeCode;
+			}
+		}
+	}
+	fin.close();
+	return data;
+}
+
 structure_data *readData_stru2(string infile, int sort, int &nrows, int &ncols, string STRU_MISSING) {
 	int ndcols = -1;
 	int ndrows = -1;
@@ -496,7 +642,7 @@ void readData_ind_asd(igzstream &fin, structure_data &data,
 }
 */
 
-structure_data *readData_tped_tfam(string tped_filename, string tfam_filename, int &nrow, int &nloci, string TPED_MISSING) {
+structure_data *readData_tped_tfam2(string tped_filename, string tfam_filename, int &nrow, int &nloci, string TPED_MISSING) {
 	string junk;
 	nrow = 0;
 	nloci = 0;

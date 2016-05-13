@@ -4,6 +4,7 @@
 #include <string>
 #include <iostream>
 #include <cmath>
+#include <sstream>
 #include "gzstream.h"
 #include "param_t.h"
 #include "asd-cli.h"
@@ -61,17 +62,14 @@ typedef struct
 	int nloci;
 } population_data;
 
-structure_data *readData_stru(string infile,
-                              int sort, int ndcols, int ndrows,
-                              int nrows, int ncols, string STRU_MISSING);
-structure_data *readData_stru2(string infile, int sort,
-                               int &nrows, int &ncols, string STRU_MISSING);
+structure_data *readData_stru(string infile, int sort, int &nrows, int &ncols, string STRU_MISSING);
+structure_data *readData_stru2(string infile, int sort, int &nrows, int &ncols, string STRU_MISSING);
 
 /*
 void readData_ind_asd(igzstream &fin, structure_data &data,
                       int sort, int ndcols, int ndrows, int nrows, int ncols, string STRU_MISSING);
 */
-structure_data *readData_tped_tfam(string tped_filename, string tfam_filename, int &nrow, int &nloci, string TPED_MISSING);
+structure_data *readData_tped_tfam2(string tped_filename, string tfam_filename, int &nrow, int &nloci, string TPED_MISSING);
 /*
 void readData_ind_asd_tped_tfam(string tped_filename, string tfam_filename, structure_data &data,
                                 int &nrow, int &nloci, string TPED_MISSING);

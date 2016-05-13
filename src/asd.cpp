@@ -59,6 +59,8 @@ int main(int argc, char *argv[])
     if (STRU) LOG.log("Input stru file:", filename);
     if (TPED) LOG.log("Input tped file:", tped_filename);
     if (TFAM) LOG.log("Input tfam file:", tfam_filename);
+    bool BIALLELIC = params->getBoolFlag(ARG_BIALLELIC);
+    LOG.log("Biallelic flag set (increases efficiency):", BIALLELIC);
 
     int sort = params->getIntFlag(ARG_SORT);
     if (STRU) LOG.log("Individual ID column:", sort);
@@ -94,6 +96,8 @@ int main(int argc, char *argv[])
         LOG.log("TPED missing code:", TPED_MISSING);
     }
 
+
+
     if (argerr) return -1;
 
     int nrows = 0;
@@ -102,7 +106,12 @@ int main(int argc, char *argv[])
     structure_data *data;
     if (STRU) {
         try {
-            data = readData_stru2(filename, sort, nrows, ncols, STRU_MISSING);
+            if (BIALLELIC) {
+                data = readData_stru(filename, sort, nrows, ncols, STRU_MISSING);
+            }
+            else {
+                data = readData_stru2(filename, sort, nrows, ncols, STRU_MISSING);
+            }
         }
         catch (...) {
             return -1;
@@ -110,8 +119,12 @@ int main(int argc, char *argv[])
     }
     else {
         try {
-            //readData_ind_asd_tped_tfam(tped_filename, tfam_filename, data, nrows, ncols, TPED_MISSING);
-            data = readData_tped_tfam(tped_filename, tfam_filename, nrows, ncols, TPED_MISSING);
+            if (BIALLELIC) {
+                //data = readData_tped_tfam(tped_filename, tfam_filename, nrows, ncols, TPED_MISSING);
+            }
+            else {
+                data = readData_tped_tfam2(tped_filename, tfam_filename, nrows, ncols, TPED_MISSING);
+            }
         }
         catch (...) {
             return -1;
@@ -141,10 +154,19 @@ int main(int argc, char *argv[])
         prev_index += NUM_PER_THREAD[i];
         order->stru_data = data;
         order->CALC_ALL_IBS = CALC_ALL_IBS;
-        pthread_create(&(peer[i]),
-                       NULL,
-                       (void *(*)(void *))calc_pw_as_dist2,
-                       (void *)order);
+        if (BIALLELIC) {
+            pthread_create(&(peer[i]),
+                           NULL,
+                           (void *(*)(void *))calc_pw_as_dist,
+                           (void *)order);
+        }
+        else {
+            pthread_create(&(peer[i]),
+                           NULL,
+                           (void *(*)(void *))calc_pw_as_dist2,
+                           (void *)order);
+
+        }
 
     }
 

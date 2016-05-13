@@ -54,6 +54,10 @@ extern const string ARG_TPED_MISSING;
 extern const string DEFAULT_TPED_MISSING;
 extern const string HELP_TPED_MISSING;
 
+extern const string ARG_BIALLELIC;
+extern const bool DEFAULT_BIALLELIC;
+extern const string HELP_BIALLELIC;
+
 param_t *getCLI(int argc, char *argv[]);
 string getCommandLineString(int argc, char *argv[]);
 bool check_int_gt_0(int n);
