@@ -1,4 +1,5 @@
 #include "asd-dist.h"
+#include "pbar.h"
 
 unsigned int *make_thread_partition(int &num_threads, int ncols) {
 	if (num_threads > ncols) num_threads = ncols;
@@ -22,19 +23,14 @@ unsigned int *make_thread_partition(int &num_threads, int ncols) {
 void calc_pw_as_dist(void *order)
 {
 	work_order_t *p = (work_order_t *)order;
-	//map<string,double*>::iterator key;
-	//map<string,double*> *data = p->stru_data->data;
 	short **data = p->stru_data->data;
 	int size = p->stru_data->nind;
-	//string *key_list = new string[size];
-	//int i = 0;
-	/*
-	for (key = data->begin(); key != data->end(); key++)
-	  {
-	    key_list[i] = (*key).first;
-	    i++;
-	  }
-	*/
+	int numThreads = p->threads;
+
+	Bar *pbar = p->bar;
+	int step = size / pbar->totalTicks;
+	if (step == 0) step = 1;
+
 	short A, B;
 
 	double ps;
@@ -45,6 +41,8 @@ void calc_pw_as_dist(void *order)
 	int *ibs2 = NULL;
 	for (int j = 0; j < size; j++)
 	{
+		if (j % step == 0) advanceBar(*pbar, double(step));
+
 		row = new double[size - j];
 		num_loci = new int[size - j];
 		if (p->CALC_ALL_IBS)
@@ -138,20 +136,16 @@ void calc_pw_as_dist(void *order)
 
 void calc_pw_as_dist2(void *order)
 {
+
 	work_order_t *p = (work_order_t *)order;
-	//map<string,double*>::iterator key;
-	//map<string,double*> *data = p->stru_data->data;
 	short **data = p->stru_data->data;
 	int size = (p->stru_data->nind);
-	//string *key_list = new string[size];
-	//int i = 0;
-	/*
-	for (key = data->begin(); key != data->end(); key++)
-	  {
-	    key_list[i] = (*key).first;
-	    i++;
-	  }
-	*/
+	int numThreads = p->threads;
+
+	Bar *pbar = p->bar;
+	int step = size / pbar->totalTicks;
+	if (step == 0) step = 1;
+
 	short A1, A2, B1, B2;
 
 	double ps;
@@ -162,6 +156,8 @@ void calc_pw_as_dist2(void *order)
 	int *ibs2 = NULL;
 	for (int j = 0; j < size; j++)
 	{
+		if (j % step == 0) advanceBar(*pbar, double(step));
+
 		row = new double[size - j];
 		num_loci = new int[size - j];
 		if (p->CALC_ALL_IBS)
@@ -256,45 +252,45 @@ void calc_pw_as_dist2(void *order)
 
 }
 
-double proportion_shared2(short A1, short A2, short B1, short B2){
- 
-    if (A1 == B1)
-    {
-        if (A2 == B2)
-        {
-            return 1;
-        }
-        else
-        {
-            return 0.5;
-        }
-    }
-    else if (A1 == B2)
-    {
-        if (A2 == B1)
-        {
-            return 1;
-        }
-        else
-        {
-            return 0.5;
-        }
-    }
-    else // A1 is unique
-    {
-        if (A2 == B2)
-        {
-            return 0.5;
-        }
-        else if (A2 == B1)
-        {
-            return 0.5;
-        }
-        else
-        {
-            return 0;
-        }
-    }
+double proportion_shared2(short A1, short A2, short B1, short B2) {
+
+	if (A1 == B1)
+	{
+		if (A2 == B2)
+		{
+			return 1;
+		}
+		else
+		{
+			return 0.5;
+		}
+	}
+	else if (A1 == B2)
+	{
+		if (A2 == B1)
+		{
+			return 1;
+		}
+		else
+		{
+			return 0.5;
+		}
+	}
+	else // A1 is unique
+	{
+		if (A2 == B2)
+		{
+			return 0.5;
+		}
+		else if (A2 == B1)
+		{
+			return 0.5;
+		}
+		else
+		{
+			return 0;
+		}
+	}
 }
 
 

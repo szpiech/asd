@@ -30,16 +30,17 @@ asd - a program to quickly calculate pairwise individual allele sharing distance
 #include "asd-data.h"
 #include "errlog.h"
 #include "asd-dist.h"
+#include "pbar.h"
 
 using namespace std;
 
 
 int main(int argc, char *argv[])
 {
-    #ifdef PTW32_STATIC_LIB
-        pthread_win32_process_attach_np(); 
-    #endif
-    
+#ifdef PTW32_STATIC_LIB
+    pthread_win32_process_attach_np();
+#endif
+
     param_t *params = getCLI(argc, argv);
     if (params == NULL) return 0;
 
@@ -51,11 +52,11 @@ int main(int argc, char *argv[])
     bool argerr = false;
 
     vector<string> comboFiles = params->getStringListFlag(ARG_COMBINE);
-    if(comboFiles[0].compare(DEFAULT_COMBINE) != 0){
+    if (comboFiles[0].compare(DEFAULT_COMBINE) != 0) {
         try {
             combine_partial_files(params);
         }
-        catch (...){
+        catch (...) {
             return -1;
         }
         return 0;
@@ -147,6 +148,9 @@ int main(int argc, char *argv[])
 
     int nind = nrows / 2;
 
+    Bar pbar;
+    barInit(pbar, nind*num_threads, 78);
+
     init_storage(nind, CALC_ALL_IBS);
 
     unsigned int *NUM_PER_THREAD = make_thread_partition(num_threads, ncols);
@@ -165,6 +169,8 @@ int main(int argc, char *argv[])
         prev_index += NUM_PER_THREAD[i];
         order->stru_data = data;
         order->CALC_ALL_IBS = CALC_ALL_IBS;
+        order->bar = &pbar;
+        order->threads = num_threads;
         if (BIALLELIC) {
             pthread_create(&(peer[i]),
                            NULL,
@@ -183,6 +189,8 @@ int main(int argc, char *argv[])
 
     for (int i = 0; i < num_threads; i++) pthread_join(peer[i], NULL);
 
+    cerr << endl;
+
     finalize_calculations(nind, ncols, CALC_ALL_IBS);
 
     write_dist_matrix(outfile, nind, ncols, data->ind_names, PRINT_PARTIAL, PRINT_LOG);
@@ -195,9 +203,9 @@ int main(int argc, char *argv[])
     delete [] NUM_PER_THREAD;
     delete [] peer;
 
-    #ifdef PTW32_STATIC_LIB
-        pthread_win32_process_detach_np();
-    #endif
+#ifdef PTW32_STATIC_LIB
+    pthread_win32_process_detach_np();
+#endif
 
     return 0;
 }

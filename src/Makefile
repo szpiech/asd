@@ -17,8 +17,8 @@ LINK_OPTS2 = -pthread -lz
 #I_PATH = -I../include -I../include/win32 
 #L_PATH = ../lib/win32
 
-asd : asd.o param_t.o gzstream.o asd-cli.o errlog.o asd-data.o asd-dist.o
-	g++ -o asd asd.o param_t.o gzstream.o asd-cli.o errlog.o asd-data.o asd-dist.o -lm $(LINK_OPTS2) $(I_PATH)
+asd : asd.o param_t.o gzstream.o asd-cli.o errlog.o asd-data.o asd-dist.o pbar.o
+	g++ -o asd asd.o param_t.o gzstream.o asd-cli.o errlog.o asd-data.o asd-dist.o pbar.o -lm $(LINK_OPTS2) $(I_PATH)
 
 asd.o : asd.cpp
 	g++ $(G++FLAG) -c asd.cpp $(I_PATH)
@@ -37,6 +37,9 @@ param_t.o : param_t.cpp
 
 errlog.o : errlog.cpp
 	g++ $(G++FLAG) -c errlog.cpp $(I_PATH)
+
+pbar.o : pbar.cpp
+	g++ $(G++FLAG) -c pbar.cpp $(I_PATH)
 
 gzstream.o : gzstream.C
 	g++ $(G++FLAG) -c gzstream.C $(I_PATH)

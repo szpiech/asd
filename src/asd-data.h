@@ -9,6 +9,7 @@
 #include "gzstream.h"
 #include "param_t.h"
 #include "asd-cli.h"
+#include "pbar.h"
 
 extern const char DEL;
 extern const string EMPTY_STRING;
@@ -29,7 +30,6 @@ typedef struct
 	short **data;
 	string *locus_names;
 	string *ind_names;
-	//map<string,int> sample_size;
 	int nloci;
 	int nind;
 } structure_data;
@@ -41,8 +41,10 @@ typedef struct
 	structure_data *stru_data;
 	int missing;
 	bool CALC_ALL_IBS;
+	Bar *bar;
+	int threads;
 } work_order_t;
-
+/*
 typedef struct
 {
 	bool PRINT_FULL;
@@ -53,7 +55,8 @@ typedef struct
 	string type;
 	int nind;
 } output_order_t;
-
+*/
+/*
 typedef struct
 {
 	double **data;
@@ -62,7 +65,7 @@ typedef struct
 	int npop;
 	int nloci;
 } population_data;
-
+*/
 void combine_partial_files(param_t *params);
 
 structure_data *readData_stru(string infile, int sort, int &nrows, int &ncols, string STRU_MISSING);
