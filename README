@@ -8,7 +8,7 @@ or
 
 ./asd --tped <filename>.tped --tfam <filename>.tfam
 
-optional flags --partial, --log, --ibs-all, --out, --missing-stru, --missing-tped, --biallelic
+optional flags --partial, --log, --ibs-all, --out, --missing-stru, --missing-tped, --biallelic, --combine
 
 asd v1.0.0
 ----------Command Line Arguments----------
@@ -16,13 +16,16 @@ asd v1.0.0
 --biallelic <bool>: Set for more efficient computations when all loci are biallelic.
 	Default: false
 
+--combine <string1> ... <stringN>: Combine several files generated with --partial.
+	Default: __none
+
 --help <bool>: Prints this help dialog.
 	Default: false
 
---ibs-all <bool>: Set to output all IBS sharing matrices.
+--ibs <bool>: Set to output all IBS sharing matrices too.
 	Default: false
 
---id-col <int>: Column where individual IDs are. (stru files only)
+--id <int>: Column where individual IDs are. (stru files only)
 	Default: 1
 
 --log <bool>: Transforms allele sharing distance by -ln(ps) instead of 1-(ps).
@@ -37,10 +40,13 @@ asd v1.0.0
 --out <string>: Basename for output files.
 	Default: outfile
 
---partial <bool>: If set, outputs two r/2 x r/2 matrices. The first is the number of loci used for each pairwise comparison, and the second is the untransformed IBS matrix. In order to recover the allele sharing distance matrix divide the untransformed IBS counts by the number of loci in the appropriate cell, and then transform by 1-(ps).
+--partial <bool>: If set, outputs two nind x nind matrices. The first is the number of loci used
+for each pairwise comparison, and the second is the untransformed dist/IBS
+matrix. Useful for splitting up very large jobs. Can combine with --combine.
 	Default: false
 
---stru <string>: The input data filename (stru format), data must be biallelic and coded 0/1 (-9 for missing data or change with --stru-mis).
+--stru <string>: The input data filename (stru format). Change missing data code with
+--missing-stru.
 	Default: __none
 
 --tfam <string>: The input data filename (tfam format), also requires a .tped file (--tped).
@@ -49,7 +55,8 @@ asd v1.0.0
 --threads <int>: Number of threads to spawn for faster calculation.
 	Default: 1
 
---tped <string>: The input data filename (tped format), also requires a .tfam file (--tfam).  Data must be biallelic, but alleles can be arbitrarily coded.  Missing data is coded 0 (or change with --tped-mis).
+--tped <string>: The input data filename (tped format). Requires a .tfam file (--tfam).
+Change missing data code with --missing-tped.
 	Default: __none
 
 
