@@ -63,6 +63,8 @@ typedef struct
 	int nloci;
 } population_data;
 
+void combine_partial_files(param_t *params);
+
 structure_data *readData_stru(string infile, int sort, int &nrows, int &ncols, string STRU_MISSING);
 structure_data *readData_stru2(string infile, int sort, int &nrows, int &ncols, string STRU_MISSING);
 

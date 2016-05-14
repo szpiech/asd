@@ -58,6 +58,10 @@ extern const string ARG_BIALLELIC;
 extern const bool DEFAULT_BIALLELIC;
 extern const string HELP_BIALLELIC;
 
+extern const string ARG_COMBINE;
+extern const string DEFAULT_COMBINE;
+extern const string HELP_COMBINE;
+
 param_t *getCLI(int argc, char *argv[]);
 string getCommandLineString(int argc, char *argv[]);
 bool check_int_gt_0(int n);

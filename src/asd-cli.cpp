@@ -2,9 +2,9 @@
 
 const string VERSION = "1.0.0";
 
-const string ARG_CALC_IBS = "--ibs-all";
+const string ARG_CALC_IBS = "--ibs";
 const bool DEFAULT_CALC_IBS = false;
-const string HELP_CALC_IBS = "Set to output all IBS sharing matrices.";
+const string HELP_CALC_IBS = "Set to output all IBS sharing matrices too.";
 
 const string ARG_OUTFILE = "--out";
 const string DEFAULT_OUTFILE = "outfile";
@@ -12,17 +12,19 @@ const string HELP_OUTFILE = "Basename for output files.";
 
 const string ARG_FILENAME = "--stru";
 const string DEFAULT_FILENAME = "__none";
-const string HELP_FILENAME = "The input data filename (stru format), data must be biallelic and coded 0/1 (-9 for missing data or change with --stru-mis).";
+const string HELP_FILENAME = "The input data filename (stru format). Change missing data code with\
+\n--missing-stru.";
 
 const string ARG_TPED_FILENAME = "--tped";
 const string DEFAULT_TPED_FILENAME = "__none";
-const string HELP_TPED_FILENAME = "The input data filename (tped format), also requires a .tfam file (--tfam).  Data must be biallelic, but alleles can be arbitrarily coded.  Missing data is coded 0 (or change with --tped-mis).";
+const string HELP_TPED_FILENAME = "The input data filename (tped format). Requires a .tfam file (--tfam).\
+\nChange missing data code with --missing-tped.";
 
 const string ARG_TFAM_FILENAME = "--tfam";
 const string DEFAULT_TFAM_FILENAME = "__none";
 const string HELP_TFAM_FILENAME = "The input data filename (tfam format), also requires a .tped file (--tped).";
 
-const string ARG_SORT = "--id-col";
+const string ARG_SORT = "--id";
 const int DEFAULT_SORT = 1;
 const string HELP_SORT = "Column where individual IDs are. (stru files only)";
 
@@ -32,7 +34,10 @@ const string HELP_THREAD = "Number of threads to spawn for faster calculation.";
 
 const string ARG_PARTIAL = "--partial";
 const bool DEFAULT_PARTIAL = false;
-const string HELP_PARTIAL = "If set, outputs two r/2 x r/2 matrices. The first is the number of loci used for each pairwise comparison, and the second is the untransformed IBS matrix. In order to recover the allele sharing distance matrix divide the untransformed IBS counts by the number of loci in the appropriate cell, and then transform by 1-(ps).";
+const string HELP_PARTIAL =
+ "If set, outputs two nind x nind matrices. The first is the number of loci used\
+\nfor each pairwise comparison, and the second is the untransformed dist/IBS\
+\nmatrix. Useful for splitting up very large jobs. Can combine with --combine.";
 
 const string ARG_LOG = "--log";
 const bool DEFAULT_LOG = false;
@@ -49,6 +54,10 @@ const string HELP_TPED_MISSING = "For stru files, set the missing data value.";
 const string ARG_BIALLELIC = "--biallelic";
 const bool DEFAULT_BIALLELIC = false;
 const string HELP_BIALLELIC = "Set for more efficient computations when all loci are biallelic.";
+
+const string ARG_COMBINE = "--combine";
+const string DEFAULT_COMBINE = "__none";
+const string HELP_COMBINE = "Combine several files generated with --partial.";
 
 string getCommandLineString(int argc, char *argv[])
 {
@@ -74,6 +83,7 @@ param_t *getCLI(int argc, char *argv[])
 	params->addFlag(ARG_STRU_MISSING, DEFAULT_STRU_MISSING, "", HELP_STRU_MISSING);
 	params->addFlag(ARG_TPED_MISSING, DEFAULT_TPED_MISSING, "", HELP_TPED_MISSING);
 	params->addFlag(ARG_BIALLELIC, DEFAULT_BIALLELIC, "", HELP_BIALLELIC);
+	params->addListFlag(ARG_COMBINE, DEFAULT_COMBINE, "", HELP_COMBINE);
 	
 	params->setPreamble("asd v" + VERSION);
 

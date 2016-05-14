@@ -14,6 +14,119 @@ pthread_mutex_t mutex_ibs_0 = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex_ibs_1 = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex_ibs_2 = PTHREAD_MUTEX_INITIALIZER;
 
+void combine_partial_files(param_t *params) {
+
+	string outfile = params->getStringFlag(ARG_OUTFILE);
+	bool PRINT_LOG = params->getBoolFlag(ARG_LOG);
+	vector<string> comboFiles = params->getStringListFlag(ARG_COMBINE);
+	igzstream fin;
+	int nind, fileNind;
+	string type, fileType;
+	string junk;
+	string *ind_names;
+	double dnum;
+	int inum;
+
+	LOG.log("Combining", int(comboFiles.size()), false);
+	LOG.log(" partial files.");
+	for (int i = 0; i < comboFiles.size(); i++) {
+		fin.open(comboFiles[i].c_str());
+		if (fin.fail()) {
+			LOG.err("ERROR: Can not open", comboFiles[i]);
+			throw 0;
+		}
+
+		LOG.log("Reading", comboFiles[i], false);
+
+		fin >> fileType;
+		fin >> fileNind;
+		if (fileNind <= 0) {
+			LOG.err("ERROR: Bad number of individuals:", fileNind);
+			LOG.err("ERROR: Check", comboFiles[i]);
+			throw 0;
+		}
+
+		LOG.log(" of type", fileType, false);
+		LOG.log(" with", fileNind, false);
+		LOG.log(" individuals.");
+
+		if (i == 0) {
+			type = fileType;
+			nind = fileNind;
+			init_storage(nind, false);
+			ind_names = new string[nind];
+		}
+
+		if (nind != fileNind) {
+			LOG.err("ERROR: Number of individuals did not match across files. Check", comboFiles[i]);
+			throw 0;
+		}
+
+		if (fileType.compare(type) != 0) {
+			LOG.err("ERROR: Can not combine files of different types:", type, false);
+			LOG.err(" ", fileType);
+			throw 0;
+		}
+
+		for (int row = 0; row < nind; row++) {
+			for (int col = 0; col < nind; col++) {
+				fin >> inum;
+				NUM_LOCI[row][col] += inum;
+			}
+		}
+
+		//fin >> junk;
+
+		for (int ind = 0; ind < nind; ind++) {
+			fin >> junk;
+			if ( i == 0) ind_names[ind] = junk;
+		}
+
+		for (int row = 0; row < nind; row++) {
+			for (int col = 0; col < nind + 1; col++) {
+				if (col == 0) fin >> junk;
+				else {
+					fin >> dnum;
+					DIST_MAT[row][col - 1] += dnum;
+				}
+			}
+		}
+
+		fin.close();
+		fin.clear();
+	}
+
+	ofstream out;
+	if (type.compare("dist") == 0) outfile += ".asd.dist";
+	else outfile += "." + type;
+
+	out.open(outfile.c_str());
+	if (out.fail()) {
+		LOG.err("ERROR: Could not open", outfile);
+		throw 0;
+	}
+
+	for (int i = 0; i < nind; i++) out << ind_names[i] << " ";
+	out << endl;
+
+	for (int i = 0; i < nind; i++) {
+		out << ind_names[i] << " ";
+		for (int j = 0; j < nind; j++) {
+			if (type.compare("dist") == 0) {
+				if (PRINT_LOG) out << 0 - log(double(DIST_MAT[i][j]) / double(NUM_LOCI[i][j])) << " ";
+				else out << 1 - (double(DIST_MAT[i][j]) / double(NUM_LOCI[i][j])) << " ";
+			}
+			else {
+				out << double(DIST_MAT[i][j]) / double(NUM_LOCI[i][j]) << " ";
+			}
+		}
+		out << endl;
+	}
+	out.close();
+	LOG.log("Wrote results to", outfile);
+	return;
+}
+
 bool init_storage(int nind, bool CALC_ALL_IBS) {
 	DIST_MAT = new double*[nind];
 	for (int i = 0; i < nind; i++)
@@ -93,18 +206,26 @@ void write_ibs_matrices(string outfile, int nind, int ncols, string *ind_names, 
 	ibs_fname[1] = outfile + ".ibs1";
 	ibs_fname[2] = outfile + ".ibs2";
 
+	if (PRINT_PARTIAL) {
+		for (int i = 0; i < 3; i++) ibs_fname[i] += ".partial";
+	}
+
 	ofstream out;
+	string type;
 	for (int ibs = 0; ibs <= 2; ibs++) {
 
 		int **mat;
 		if (ibs == 0) {
 			mat = IBS_0_MAT;
+			type = "ibs0";
 		}
 		else if (ibs == 1) {
 			mat = IBS_1_MAT;
+			type = "ibs1";
 		}
 		else if (ibs == 2) {
 			mat = IBS_2_MAT;
+			type = "ibs2";
 		}
 
 		out.open(ibs_fname[ibs].c_str());
@@ -113,14 +234,14 @@ void write_ibs_matrices(string outfile, int nind, int ncols, string *ind_names, 
 			throw 0;
 		}
 		if (PRINT_PARTIAL) {
-			out << nind << endl;
+			out << type << " " << nind << endl;
 			for (int i = 0; i < nind; i++) {
 				for (int j = 0; j < nind; j++) {
 					out << double(ncols) + double(NUM_LOCI[i][j]) << " ";
 				}
 				out << endl;
 			}
-			out << endl;
+			//out << endl;
 		}
 
 		for (int i = 0; i < nind; i++)
@@ -146,6 +267,7 @@ void write_ibs_matrices(string outfile, int nind, int ncols, string *ind_names, 
 		}
 		out.close();
 		out.clear();
+		LOG.log("Wrote results to", ibs_fname[ibs]);
 	}
 
 	return;
@@ -153,6 +275,7 @@ void write_ibs_matrices(string outfile, int nind, int ncols, string *ind_names, 
 
 void write_dist_matrix(string outfile, int nind, int ncols, string *ind_names, bool PRINT_PARTIAL, bool PRINT_LOG) {
 	ofstream out;
+	string type = "dist";
 	if (!PRINT_PARTIAL) {
 		outfile += ".asd.dist";
 	}
@@ -167,7 +290,7 @@ void write_dist_matrix(string outfile, int nind, int ncols, string *ind_names, b
 	}
 	if (PRINT_PARTIAL)
 	{
-		out << nind << endl;
+		out << type << " " << nind << endl;
 		for (int i = 0; i < nind; i++)
 		{
 			for (int j = 0; j < nind; j++)
@@ -176,7 +299,7 @@ void write_dist_matrix(string outfile, int nind, int ncols, string *ind_names, b
 			}
 			out << endl;
 		}
-		out << endl;
+		//out << endl;
 	}
 
 	for (int i = 0; i < nind; i++)
@@ -207,6 +330,7 @@ void write_dist_matrix(string outfile, int nind, int ncols, string *ind_names, b
 		out << endl;
 	}
 	out.close();
+	LOG.log("Wrote results to", outfile);
 	return;
 }
 

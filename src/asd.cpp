@@ -50,6 +50,17 @@ int main(int argc, char *argv[])
 
     bool argerr = false;
 
+    vector<string> comboFiles = params->getStringListFlag(ARG_COMBINE);
+    if(comboFiles[0].compare(DEFAULT_COMBINE) != 0){
+        try {
+            combine_partial_files(params);
+        }
+        catch (...){
+            return -1;
+        }
+        return 0;
+    }
+
     string filename = params->getStringFlag(ARG_FILENAME);
     string tped_filename = params->getStringFlag(ARG_TPED_FILENAME);
     string tfam_filename = params->getStringFlag(ARG_TFAM_FILENAME);
@@ -57,8 +68,8 @@ int main(int argc, char *argv[])
     bool TPED = (tped_filename.compare(DEFAULT_TPED_FILENAME) != 0);
     bool TFAM = (tfam_filename.compare(DEFAULT_TFAM_FILENAME) != 0);
     if (!check_file_type(STRU, TPED, TFAM)) {
-        argerr = true;
         LOG.err("ERROR: Must specify either stru or tped/tfam.");
+        return -1;
     }
     if (STRU) LOG.log("Input stru file:", filename);
     if (TPED) LOG.log("Input tped file:", tped_filename);
@@ -71,16 +82,16 @@ int main(int argc, char *argv[])
 
     int num_threads = params->getIntFlag(ARG_THREAD);
     if (!check_int_gt_0(num_threads)) {
-        argerr = true;
         LOG.err("ERROR: Must have a positive number of threads.");
+        return -1;
     }
     LOG.log("Number of threads:", num_threads);
 
     bool PRINT_PARTIAL = params->getBoolFlag(ARG_PARTIAL);
     bool PRINT_LOG = params->getBoolFlag(ARG_LOG);
     if (PRINT_PARTIAL && PRINT_LOG) {
-        argerr = true;
         LOG.err("ERROR: Must choose only one of --partial, --log.");
+        return -1;
     }
     if (!PRINT_PARTIAL) {
         LOG.log("Print allele sharing matrix:", !PRINT_PARTIAL);
@@ -99,10 +110,6 @@ int main(int argc, char *argv[])
     else {
         LOG.log("TPED missing code:", TPED_MISSING);
     }
-
-
-
-    if (argerr) return -1;
 
     int nrows = 0;
     int ncols = 0;
