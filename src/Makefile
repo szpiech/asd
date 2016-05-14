@@ -3,18 +3,18 @@
 #G++FLAG = -g
 
 #osx
-#G++FLAG = -fast
-#LINK_OPTS2 = -pthread -lz
+G++FLAG = -fast
+LINK_OPTS2 = -pthread -lz
 
 #linux
 #G++FLAG = -O3
 #LINK_OPTS2 = -pthread -lz
 
 #for windows, using MinGW build environment
-CC = g++.exe
-G++FLAG = -DPTW32_STATIC_LIB -O3 -static-libgcc -static-libstdc++
-LINK_OPTS2 = ../lib/win32/libpthreadGC2.a ../lib/win32/libz.a 
-I_PATH = -I../include -I../include/win32 
+#CC = g++.exe
+#G++FLAG = -DPTW32_STATIC_LIB -O3 -static-libgcc -static-libstdc++
+#LINK_OPTS2 = ../lib/win32/libpthreadGC2.a ../lib/win32/libz.a 
+#I_PATH = -I../include -I../include/win32 
 #L_PATH = ../lib/win32
 
 asd : asd.o param_t.o gzstream.o asd-cli.o errlog.o asd-data.o asd-dist.o
