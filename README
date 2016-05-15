@@ -8,7 +8,7 @@ or
 
 ./asd --tped <filename>.tped --tfam <filename>.tfam
 
-optional flags --partial, --log, --ibs-all, --out, --missing-stru, --missing-tped, --biallelic, --combine
+optional flags --partial, --log, --ibs-all, --out, --missing-stru, --missing-tped, --biallelic, --combine, --long, --long-ibs
 
 asd v1.0.0
 ----------Command Line Arguments----------
@@ -29,6 +29,16 @@ asd v1.0.0
 	Default: 1
 
 --log <bool>: Transforms allele sharing distance by -ln(ps) instead of 1-(ps).
+	Default: false
+
+--long <bool>: Instead of printing a matrix, print allele sharing distances one
+per row. Formatted <ID1> <ID2> <allele sharing distance>.
+Not compatible with --partial.
+	Default: false
+
+--long-ibs <bool>: Instead of printing a matrix, print IBS calculations one
+per row. Formatted <ID1> <ID2> <IBS0/1/2>.
+Not compatible with --partial.
 	Default: false
 
 --missing-stru <string>: For stru files, set the missing data value.
