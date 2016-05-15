@@ -112,6 +112,13 @@ int main(int argc, char *argv[])
         LOG.log("TPED missing code:", TPED_MISSING);
     }
 
+    bool PRINT_LONG = params->getBoolFlag(ARG_LONG_FORMAT);
+    bool PRINT_LONG_IBS = params->getBoolFlag(ARG_IBS_LONG);
+    if((PRINT_LONG || PRINT_LONG_IBS) && PRINT_PARTIAL){
+        LOG.err("ERROR: --long and --long-ibs are not compatible with --partial.");
+        return -1;
+    }
+
     int nrows = 0;
     int ncols = 0;
 
@@ -193,11 +200,11 @@ int main(int argc, char *argv[])
 
     finalize_calculations(nind, ncols, CALC_ALL_IBS);
 
-    write_dist_matrix(outfile, nind, ncols, data->ind_names, PRINT_PARTIAL, PRINT_LOG);
+    write_dist_matrix(outfile, nind, ncols, data->ind_names, PRINT_PARTIAL, PRINT_LOG, PRINT_LONG);
 
     if (CALC_ALL_IBS)
     {
-        write_ibs_matrices(outfile, nind, ncols, data->ind_names, PRINT_PARTIAL);
+        write_ibs_matrices(outfile, nind, ncols, data->ind_names, PRINT_PARTIAL, PRINT_LONG_IBS);
     }
 
     delete [] NUM_PER_THREAD;

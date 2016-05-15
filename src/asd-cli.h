@@ -62,11 +62,19 @@ extern const string ARG_COMBINE;
 extern const string DEFAULT_COMBINE;
 extern const string HELP_COMBINE;
 
+extern const string ARG_LONG_FORMAT;
+extern const bool DEFAULT_LONG_FORMAT;
+extern const string HELP_LONG_FORMAT;
+
+extern const string ARG_IBS_LONG;
+extern const bool DEFAULT_IBS_LONG;
+extern const string HELP_IBS_LONG;
+
 param_t *getCLI(int argc, char *argv[]);
 string getCommandLineString(int argc, char *argv[]);
 bool check_int_gt_0(int n);
 bool check_int_ge_0(int n);
-bool check_sort_ge_ndcols(int sort, int ndcols);
+bool check_sort(int sort, int ndcols);
 bool check_file_type(bool STRU, bool TPED, bool TFAM);
 
 #endif

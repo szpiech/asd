@@ -18,6 +18,8 @@ void combine_partial_files(param_t *params) {
 
 	string outfile = params->getStringFlag(ARG_OUTFILE);
 	bool PRINT_LOG = params->getBoolFlag(ARG_LOG);
+	bool PRINT_LONG = params->getBoolFlag(ARG_LONG_FORMAT);
+	bool PRINT_LONG_IBS = params->getBoolFlag(ARG_IBS_LONG);
 	vector<string> comboFiles = params->getStringListFlag(ARG_COMBINE);
 	igzstream fin;
 	int nind, fileNind;
@@ -106,21 +108,37 @@ void combine_partial_files(param_t *params) {
 		throw 0;
 	}
 
-	for (int i = 0; i < nind; i++) out << ind_names[i] << " ";
-	out << endl;
+	if (!PRINT_LONG && !PRINT_LONG_IBS) {
+		for (int i = 0; i < nind; i++) out << ind_names[i] << " ";
+		out << endl;
 
-	for (int i = 0; i < nind; i++) {
-		out << ind_names[i] << " ";
-		for (int j = 0; j < nind; j++) {
-			if (type.compare("dist") == 0) {
-				if (PRINT_LOG) out << 0 - log(double(DIST_MAT[i][j]) / double(NUM_LOCI[i][j])) << " ";
-				else out << 1 - (double(DIST_MAT[i][j]) / double(NUM_LOCI[i][j])) << " ";
+		for (int i = 0; i < nind; i++) {
+			out << ind_names[i] << " ";
+			for (int j = 0; j < nind; j++) {
+				if (type.compare("dist") == 0) {
+					if (PRINT_LOG) out << 0 - log(double(DIST_MAT[i][j]) / double(NUM_LOCI[i][j])) << " ";
+					else out << 1 - (double(DIST_MAT[i][j]) / double(NUM_LOCI[i][j])) << " ";
+				}
+				else {
+					out << double(DIST_MAT[i][j]) / double(NUM_LOCI[i][j]) << " ";
+				}
 			}
-			else {
-				out << double(DIST_MAT[i][j]) / double(NUM_LOCI[i][j]) << " ";
+			out << endl;
+		}
+	}
+	else {
+		for (int i = 0; i < nind; i++) {
+			for (int j = i; j < nind; j++) {
+				out << ind_names[i] << " " << ind_names[j] << " ";
+				if (type.compare("dist") == 0) {
+					if (PRINT_LOG) out << 0 - log(double(DIST_MAT[i][j]) / double(NUM_LOCI[i][j])) << endl;
+					else out << 1 - (double(DIST_MAT[i][j]) / double(NUM_LOCI[i][j])) << endl;
+				}
+				else {
+					out << double(DIST_MAT[i][j]) / double(NUM_LOCI[i][j]) << endl;
+				}
 			}
 		}
-		out << endl;
 	}
 	out.close();
 	LOG.log("Wrote results to", outfile);
@@ -200,7 +218,7 @@ bool finalize_calculations(int nind, int ncols, bool CALC_ALL_IBS) {
 	return true;
 }
 
-void write_ibs_matrices(string outfile, int nind, int ncols, string *ind_names, bool PRINT_PARTIAL) {
+void write_ibs_matrices(string outfile, int nind, int ncols, string *ind_names, bool PRINT_PARTIAL, bool PRINT_LONG_IBS) {
 	string ibs_fname[3];
 	ibs_fname[0] = outfile + ".ibs0";
 	ibs_fname[1] = outfile + ".ibs1";
@@ -244,26 +262,36 @@ void write_ibs_matrices(string outfile, int nind, int ncols, string *ind_names, 
 			//out << endl;
 		}
 
-		for (int i = 0; i < nind; i++)
-		{
-			out << ind_names[i] << " ";
-		}
-		out << endl;
-
-		for (int i = 0; i < nind; i++)
-		{
-			out << ind_names[i] << " ";
-			for (int j = 0; j < nind ; j++)
+		if (!PRINT_LONG_IBS) {
+			for (int i = 0; i < nind; i++)
 			{
-				if (!PRINT_PARTIAL)
-				{
-					out << double(mat[i][j]) /
-					    (double(ncols) + double(NUM_LOCI[i][j])) << " ";
-				}
-				else out << mat[i][j] << " ";
-
+				out << ind_names[i] << " ";
 			}
 			out << endl;
+
+			for (int i = 0; i < nind; i++)
+			{
+				out << ind_names[i] << " ";
+				for (int j = 0; j < nind ; j++)
+				{
+					if (!PRINT_PARTIAL)
+					{
+						out << double(mat[i][j]) /
+						    (double(ncols) + double(NUM_LOCI[i][j])) << " ";
+					}
+					else out << mat[i][j] << " ";
+
+				}
+				out << endl;
+			}
+		}
+		else {
+			for (int i = 0; i < nind; i++) {
+				for (int j = i; j < nind ; j++) {
+					out << ind_names[i] << " " << ind_names[j] << " ";
+					out << double(mat[i][j]) / (double(ncols) + double(NUM_LOCI[i][j])) << endl;
+				}
+			}
 		}
 		out.close();
 		out.clear();
@@ -273,7 +301,7 @@ void write_ibs_matrices(string outfile, int nind, int ncols, string *ind_names, 
 	return;
 }
 
-void write_dist_matrix(string outfile, int nind, int ncols, string *ind_names, bool PRINT_PARTIAL, bool PRINT_LOG) {
+void write_dist_matrix(string outfile, int nind, int ncols, string *ind_names, bool PRINT_PARTIAL, bool PRINT_LOG, bool PRINT_LONG) {
 	ofstream out;
 	string type = "dist";
 	if (!PRINT_PARTIAL) {
@@ -302,32 +330,51 @@ void write_dist_matrix(string outfile, int nind, int ncols, string *ind_names, b
 		//out << endl;
 	}
 
-	for (int i = 0; i < nind; i++)
-	{
-		out << ind_names[i] << " ";
-	}
-	out << endl;
-
-	for (int i = 0; i < nind; i++)
-	{
-		out << ind_names[i] << " ";
-		for (int j = 0; j < nind ; j++)
+	if (!PRINT_LONG) {
+		for (int i = 0; i < nind; i++)
 		{
-			if (PRINT_LOG)
-			{
-				out << 0 - log(double(DIST_MAT[i][j]) /
-				               (double(ncols) + double(NUM_LOCI[i][j])))
-				    << " ";
-			}
-			else if (!PRINT_PARTIAL)
-			{
-				out << 1 - (double(DIST_MAT[i][j]) /
-				            (double(ncols) + double(NUM_LOCI[i][j])))
-				    << " ";
-			}
-			else out << DIST_MAT[i][j] << " ";
+			out << ind_names[i] << " ";
 		}
 		out << endl;
+
+		for (int i = 0; i < nind; i++)
+		{
+			out << ind_names[i] << " ";
+			for (int j = 0; j < nind ; j++)
+			{
+				if (PRINT_LOG)
+				{
+					out << 0 - log(double(DIST_MAT[i][j]) /
+					               (double(ncols) + double(NUM_LOCI[i][j])))
+					    << " ";
+				}
+				else if (!PRINT_PARTIAL)
+				{
+					out << 1 - (double(DIST_MAT[i][j]) /
+					            (double(ncols) + double(NUM_LOCI[i][j])))
+					    << " ";
+				}
+				else out << DIST_MAT[i][j] << " ";
+			}
+			out << endl;
+		}
+	}
+	else {
+		for (int i = 0; i < nind; i++) {
+			for (int j = i; j < nind ; j++) {
+				out << ind_names[i] << " " << ind_names[j] << " ";
+				if (PRINT_LOG) {
+					out << 0 - log(double(DIST_MAT[i][j]) /
+					               (double(ncols) + double(NUM_LOCI[i][j])))
+					    << endl;
+				}
+				else {
+					out << 1 - (double(DIST_MAT[i][j]) /
+					            (double(ncols) + double(NUM_LOCI[i][j])))
+					    << endl;
+				}
+			}
+		}
 	}
 	out.close();
 	LOG.log("Wrote results to", outfile);
@@ -411,10 +458,10 @@ structure_data *readData_stru(string infile, int sort, int &nrows, int &ncols, s
 	}
 	LOG.log("Non-data header columns:", ndcols);
 
-	if (!check_sort_ge_ndcols(sort, ndcols)) {
+	if (!check_sort(sort, ndcols)) {
 		err = true;
-		LOG.err("ERROR: Individual ID column must be in [ 1, ", ndcols, false);
-		LOG.err("].");
+		LOG.err("ERROR: Individual ID column must be in [ 1,", ndcols, false);
+		LOG.err(" ].");
 	}
 
 	if (err) {
@@ -557,7 +604,7 @@ structure_data *readData_stru2(string infile, int sort, int &nrows, int &ncols, 
 	}
 	LOG.log("Non-data header columns:", ndcols);
 
-	if (!check_sort_ge_ndcols(sort, ndcols)) {
+	if (!check_sort(sort, ndcols)) {
 		err = true;
 		LOG.err("ERROR: Individual ID column must be in [ 1, ", ndcols, false);
 		LOG.err("].");

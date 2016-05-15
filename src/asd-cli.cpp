@@ -59,6 +59,18 @@ const string ARG_COMBINE = "--combine";
 const string DEFAULT_COMBINE = "__none";
 const string HELP_COMBINE = "Combine several files generated with --partial.";
 
+const string ARG_LONG_FORMAT = "--long";
+const bool DEFAULT_LONG_FORMAT = false;
+const string HELP_LONG_FORMAT = "Instead of printing a matrix, print allele sharing distances one\
+\nper row. Formatted <ID1> <ID2> <allele sharing distance>.\
+\nNot compatible with --partial.";
+
+const string ARG_IBS_LONG = "--long-ibs";
+const bool DEFAULT_IBS_LONG = false;
+const string HELP_IBS_LONG = "Instead of printing a matrix, print IBS calculations one\
+\nper row. Formatted <ID1> <ID2> <IBS0/1/2>.\
+\nNot compatible with --partial.";
+
 string getCommandLineString(int argc, char *argv[])
 {
 	string str = argv[0];
@@ -84,7 +96,9 @@ param_t *getCLI(int argc, char *argv[])
 	params->addFlag(ARG_TPED_MISSING, DEFAULT_TPED_MISSING, "", HELP_TPED_MISSING);
 	params->addFlag(ARG_BIALLELIC, DEFAULT_BIALLELIC, "", HELP_BIALLELIC);
 	params->addListFlag(ARG_COMBINE, DEFAULT_COMBINE, "", HELP_COMBINE);
-	
+	params->addFlag(ARG_LONG_FORMAT, DEFAULT_LONG_FORMAT, "", HELP_LONG_FORMAT);
+	params->addFlag(ARG_IBS_LONG, DEFAULT_IBS_LONG, "", HELP_IBS_LONG);
+
 	params->setPreamble("asd v" + VERSION);
 
 	if (!params->parseCommandLine(argc, argv))
@@ -102,8 +116,8 @@ bool check_int_gt_0(int n) {
 bool check_int_ge_0(int n) {
 	return (n >= 0);
 }
-bool check_sort_ge_ndcols(int sort, int ndcols) {
-	return (sort >= ndcols);
+bool check_sort(int sort, int ndcols) {
+	return (sort <= ndcols && sort >= 1);
 }
 bool check_file_type(bool STRU, bool TPED, bool TFAM) {
 	return ((STRU && !TPED && !TFAM) || (!STRU && TFAM && TPED));
