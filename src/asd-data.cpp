@@ -253,6 +253,7 @@ void write_ibs_matrices(string outfile, int nind, int ncols, string *ind_names, 
 		}
 		out << std::fixed;
 		if (PRINT_PARTIAL) {
+			out << std::setprecision(0);
 			out << type << " " << nind << endl;
 			for (int i = 0; i < nind; i++) {
 				for (int j = 0; j < nind; j++) {
@@ -320,6 +321,7 @@ void write_dist_matrix(string outfile, int nind, int ncols, string *ind_names, b
 	out << std::fixed;
 	if (PRINT_PARTIAL)
 	{
+		out << std::setprecision(0);
 		out << type << " " << nind << endl;
 		for (int i = 0; i < nind; i++)
 		{
