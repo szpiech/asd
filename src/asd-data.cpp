@@ -251,6 +251,7 @@ void write_ibs_matrices(string outfile, int nind, int ncols, string *ind_names, 
 			LOG.err("ERROR: Could not open", ibs_fname[ibs]);
 			throw 0;
 		}
+		out << std::fixed;
 		if (PRINT_PARTIAL) {
 			out << type << " " << nind << endl;
 			for (int i = 0; i < nind; i++) {
@@ -316,6 +317,7 @@ void write_dist_matrix(string outfile, int nind, int ncols, string *ind_names, b
 		LOG.err("ERROR: Could not open", outfile);
 		throw 0;
 	}
+	out << std::fixed;
 	if (PRINT_PARTIAL)
 	{
 		out << type << " " << nind << endl;
