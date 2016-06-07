@@ -85,10 +85,8 @@ void combine_partial_files(param_t *params) {
 			ssin.str(line);
 			for (int col = 0; col < nind; col++) {
 				ssin >> inum;
-				cerr << inum << " ";
 				NUM_LOCI[row][col] += inum;
 			}
-			cerr << endl;
 		}
 
 		ssin.clear();
