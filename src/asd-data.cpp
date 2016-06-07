@@ -47,7 +47,7 @@ void combine_partial_files(param_t *params) {
 		LOG.log("Reading", comboFiles[i], false);
 
 		ssin.clear();
-		getline(fin, line);]
+		getline(fin, line);
 		ssin.str(line);
 		ssin >> fileType;
 		ssin >> fileNind;
