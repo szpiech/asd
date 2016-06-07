@@ -34,7 +34,7 @@ void combine_partial_files(param_t *params) {
 	LOG.log(" partial files.");
 	for (int i = 0; i < comboFiles.size(); i++) {
 		stringstream ssin;
-		
+
 		fin.open(comboFiles[i].c_str());
 		if (fin.fail()) {
 			LOG.err("ERROR: Can not open", comboFiles[i]);
@@ -43,6 +43,7 @@ void combine_partial_files(param_t *params) {
 
 		LOG.log("Reading", comboFiles[i], false);
 		getline(fin, line);
+		cerr << line << endl;
 		ssin.str(line);
 		ssin >> fileType;
 		ssin >> fileNind;
