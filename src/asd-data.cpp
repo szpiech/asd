@@ -21,19 +21,22 @@ void combine_partial_files(param_t *params) {
 	bool PRINT_LONG = params->getBoolFlag(ARG_LONG_FORMAT);
 	bool PRINT_LONG_IBS = params->getBoolFlag(ARG_IBS_LONG);
 	vector<string> comboFiles = params->getStringListFlag(ARG_COMBINE);
-	igzstream fin;
-	int nind, fileNind;
-	string type, fileType;
-	string junk, line;
+
+	int nind;
+	string type;
 	string *ind_names;
-	double dnum;
-	double inum;
-	
 
 	LOG.log("Combining", int(comboFiles.size()), false);
 	LOG.log(" partial files.");
 	for (int i = 0; i < comboFiles.size(); i++) {
+		igzstream fin;
 		stringstream ssin;
+
+		int fileNind;
+		string fileType;
+		string junk, line;
+		double dnum;
+		double inum;
 
 		fin.open(comboFiles[i].c_str());
 		if (fin.fail()) {
@@ -43,7 +46,7 @@ void combine_partial_files(param_t *params) {
 
 		LOG.log("Reading", comboFiles[i], false);
 		getline(fin, line);
-		cerr << line << endl;
+		//cerr << line << endl;
 		ssin.str(line);
 		ssin >> fileType;
 		ssin >> fileNind;
