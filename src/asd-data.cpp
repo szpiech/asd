@@ -80,12 +80,13 @@ void combine_partial_files(param_t *params) {
 
 		for (int row = 0; row < nind; row++) {
 			getline(fin, line);
-			cerr << line << endl;
 			ssin.str(line);
 			for (int col = 0; col < nind; col++) {
 				ssin >> inum;
+				cerr << inum << " ";
 				NUM_LOCI[row][col] += inum;
 			}
+			cerr << endl;
 		}
 
 		getline(fin, line);
