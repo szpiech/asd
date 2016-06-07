@@ -30,7 +30,7 @@ void combine_partial_files(param_t *params) {
 	LOG.log(" partial files.");
 	for (int i = 0; i < comboFiles.size(); i++) {
 		igzstream fin;
-		stringstream ssin;
+		istringstream ssin;
 
 		int fileNind;
 		string fileType;
@@ -45,8 +45,9 @@ void combine_partial_files(param_t *params) {
 		}
 
 		LOG.log("Reading", comboFiles[i], false);
-		getline(fin, line);
-		//cerr << line << endl;
+
+		ssin.clear();
+		getline(fin, line);]
 		ssin.str(line);
 		ssin >> fileType;
 		ssin >> fileNind;
@@ -79,6 +80,7 @@ void combine_partial_files(param_t *params) {
 		}
 
 		for (int row = 0; row < nind; row++) {
+			ssin.clear();
 			getline(fin, line);
 			ssin.str(line);
 			for (int col = 0; col < nind; col++) {
@@ -89,6 +91,7 @@ void combine_partial_files(param_t *params) {
 			cerr << endl;
 		}
 
+		ssin.clear();
 		getline(fin, line);
 		ssin.str(line);
 		if ( i == 0 ) {
@@ -98,6 +101,7 @@ void combine_partial_files(param_t *params) {
 		}
 
 		for (int row = 0; row < nind; row++) {
+			ssin.clear();
 			getline(fin, line);
 			ssin.str(line);
 			for (int col = 0; col < nind + 1; col++) {
