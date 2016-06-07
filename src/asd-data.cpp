@@ -28,11 +28,13 @@ void combine_partial_files(param_t *params) {
 	string *ind_names;
 	double dnum;
 	double inum;
-	stringstream ssin;
+	
 
 	LOG.log("Combining", int(comboFiles.size()), false);
 	LOG.log(" partial files.");
 	for (int i = 0; i < comboFiles.size(); i++) {
+		stringstream ssin;
+		
 		fin.open(comboFiles[i].c_str());
 		if (fin.fail()) {
 			LOG.err("ERROR: Can not open", comboFiles[i]);
