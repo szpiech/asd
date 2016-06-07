@@ -24,10 +24,11 @@ void combine_partial_files(param_t *params) {
 	igzstream fin;
 	int nind, fileNind;
 	string type, fileType;
-	string junk;
+	string junk, line;
 	string *ind_names;
 	double dnum;
-	int inum;
+	double inum;
+	stringstream ssin;
 
 	LOG.log("Combining", int(comboFiles.size()), false);
 	LOG.log(" partial files.");
@@ -39,9 +40,10 @@ void combine_partial_files(param_t *params) {
 		}
 
 		LOG.log("Reading", comboFiles[i], false);
-
-		fin >> fileType;
-		fin >> fileNind;
+		getline(fin, line);
+		ssin.str(line);
+		ssin >> fileType;
+		ssin >> fileNind;
 		if (fileNind <= 0) {
 			LOG.err("ERROR: Bad number of individuals:", fileNind);
 			LOG.err("ERROR: Check", comboFiles[i]);
@@ -71,24 +73,29 @@ void combine_partial_files(param_t *params) {
 		}
 
 		for (int row = 0; row < nind; row++) {
+			getline(fin, line);
+			ssin.str(line);
 			for (int col = 0; col < nind; col++) {
-				fin >> inum;
+				ssin >> inum;
 				NUM_LOCI[row][col] += inum;
 			}
 		}
 
-		//fin >> junk;
-
-		for (int ind = 0; ind < nind; ind++) {
-			fin >> junk;
-			if ( i == 0) ind_names[ind] = junk;
+		getline(fin, line);
+		ssin.str(line);
+		if ( i == 0 ) {
+			for (int ind = 0; ind < nind; ind++) {
+				ssin >> ind_names[ind];
+			}
 		}
 
 		for (int row = 0; row < nind; row++) {
+			getline(fin, line);
+			ssin.str(line);
 			for (int col = 0; col < nind + 1; col++) {
-				if (col == 0) fin >> junk;
+				if (col == 0) ssin >> junk;
 				else {
-					fin >> dnum;
+					ssin >> dnum;
 					DIST_MAT[row][col - 1] += dnum;
 				}
 			}
@@ -331,6 +338,7 @@ void write_dist_matrix(string outfile, int nind, int ncols, string *ind_names, b
 			}
 			out << endl;
 		}
+		out << std::setprecision(6);
 		//out << endl;
 	}
 
