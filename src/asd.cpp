@@ -65,18 +65,28 @@ int main(int argc, char *argv[])
     string filename = params->getStringFlag(ARG_FILENAME);
     string tped_filename = params->getStringFlag(ARG_TPED_FILENAME);
     string tfam_filename = params->getStringFlag(ARG_TFAM_FILENAME);
+    string vcf_filename = params->getStringFlag(ARG_VCF_FILENAME);
     bool STRU = (filename.compare(DEFAULT_FILENAME) != 0);
     bool TPED = (tped_filename.compare(DEFAULT_TPED_FILENAME) != 0);
     bool TFAM = (tfam_filename.compare(DEFAULT_TFAM_FILENAME) != 0);
-    if (!check_file_type(STRU, TPED, TFAM)) {
-        LOG.err("ERROR: Must specify either stru or tped/tfam.");
+    bool VCF = (vcf_filename.compare(DEFAULT_VCF_FILENAME) != 0);
+    if (!check_file_type(STRU, TPED, TFAM, VCF)) {
+        LOG.err("ERROR: Must specify either stru, vcf, or tped/tfam.");
         return -1;
     }
     if (STRU) LOG.log("Input stru file:", filename);
     if (TPED) LOG.log("Input tped file:", tped_filename);
     if (TFAM) LOG.log("Input tfam file:", tfam_filename);
+    if (VCF) LOG.log("Input vcf file:", vcf_filename);
     bool BIALLELIC = params->getBoolFlag(ARG_BIALLELIC);
     LOG.log("Biallelic flag set (increases efficiency):", BIALLELIC);
+
+    double MAF = params->getDoubleFlag(ARG_MAF);
+    if(!check_maf(MAF)){
+        LOG.err("ERROR: MAF must be >= 0 and <= 1.");
+        return -1;
+    }
+    LOG.log("MAF filter:", MAF);
 
     int sort = params->getIntFlag(ARG_SORT);
     if (STRU) LOG.log("Individual ID column:", sort);
@@ -108,7 +118,7 @@ int main(int argc, char *argv[])
     if (STRU) {
         LOG.log("STRU missing code:", STRU_MISSING);
     }
-    else {
+    else if (TPED) {
         LOG.log("TPED missing code:", TPED_MISSING);
     }
 
@@ -136,13 +146,26 @@ int main(int argc, char *argv[])
             return -1;
         }
     }
-    else {
+    else if (TPED) {
         try {
             if (BIALLELIC) {
                 data = readData_tped_tfam(tped_filename, tfam_filename, nrows, ncols, TPED_MISSING);
             }
             else {
                 data = readData_tped_tfam2(tped_filename, tfam_filename, nrows, ncols, TPED_MISSING);
+            }
+        }
+        catch (...) {
+            return -1;
+        }
+    }
+    else if (VCF) {
+        try {
+            if (BIALLELIC) {
+                data = readData_vcf(vcf_filename, nrows, ncols, MAF);
+            }
+            else {
+                data = readData_vcf2(vcf_filename, nrows, ncols, MAF);
             }
         }
         catch (...) {

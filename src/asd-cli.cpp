@@ -1,6 +1,6 @@
 #include "asd-cli.h"
 
-const string VERSION = "1.0.0";
+const string VERSION = "1.0.1";
 
 const string ARG_CALC_IBS = "--ibs";
 const bool DEFAULT_CALC_IBS = false;
@@ -24,6 +24,14 @@ const string ARG_TFAM_FILENAME = "--tfam";
 const string DEFAULT_TFAM_FILENAME = "__none";
 const string HELP_TFAM_FILENAME = "The input data filename (tfam format), also requires a .tped file (--tped).";
 
+const string ARG_VCF_FILENAME = "--vcf";
+const string DEFAULT_VCF_FILENAME = "__none";
+const string HELP_VCF_FILENAME = "The input data filename (vcf format).";
+
+const string ARG_MAF = "--maf";
+const double DEFAULT_MAF = 0.0;
+const string HELP_MAF = "";
+
 const string ARG_SORT = "--id";
 const int DEFAULT_SORT = 1;
 const string HELP_SORT = "Column where individual IDs are. (stru files only)";
@@ -35,7 +43,7 @@ const string HELP_THREAD = "Number of threads to spawn for faster calculation.";
 const string ARG_PARTIAL = "--partial";
 const bool DEFAULT_PARTIAL = false;
 const string HELP_PARTIAL =
- "If set, outputs two nind x nind matrices. The first is the number of loci used\
+    "If set, outputs two nind x nind matrices. The first is the number of loci used\
 \nfor each pairwise comparison, and the second is the untransformed dist/IBS\
 \nmatrix. Useful for splitting up very large jobs. Can combine with --combine.";
 
@@ -89,6 +97,8 @@ param_t *getCLI(int argc, char *argv[])
 	params->addFlag(ARG_FILENAME, DEFAULT_FILENAME, "", HELP_FILENAME);
 	params->addFlag(ARG_TPED_FILENAME, DEFAULT_TPED_FILENAME, "", HELP_TPED_FILENAME);
 	params->addFlag(ARG_TFAM_FILENAME, DEFAULT_TFAM_FILENAME, "", HELP_TFAM_FILENAME);
+	params->addFlag(ARG_VCF_FILENAME, DEFAULT_VCF_FILENAME, "", HELP_VCF_FILENAME);
+	params->addFlag(ARG_MAF, DEFAULT_MAF, "", HELP_MAF);
 	params->addFlag(ARG_SORT, DEFAULT_SORT, "", HELP_SORT);
 	params->addFlag(ARG_PARTIAL, DEFAULT_PARTIAL, "", HELP_PARTIAL);
 	params->addFlag(ARG_LOG, DEFAULT_LOG, "", HELP_LOG);
@@ -109,6 +119,9 @@ param_t *getCLI(int argc, char *argv[])
 	return params;
 }
 
+bool check_maf(double maf){
+	return (maf >= 0 && maf <= 1);
+}
 
 bool check_int_gt_0(int n) {
 	return (n > 0);
@@ -119,6 +132,6 @@ bool check_int_ge_0(int n) {
 bool check_sort(int sort, int ndcols) {
 	return (sort <= ndcols && sort >= 1);
 }
-bool check_file_type(bool STRU, bool TPED, bool TFAM) {
-	return ((STRU && !TPED && !TFAM) || (!STRU && TFAM && TPED));
+bool check_file_type(bool STRU, bool TPED, bool TFAM, bool VCF) {
+	return ((STRU && !TPED && !TFAM && !VCF) || (!STRU && TFAM && TPED && !VCF) || (!STRU && !TFAM && !TPED && VCF));
 }

@@ -30,6 +30,14 @@ extern const string ARG_TFAM_FILENAME;
 extern const string DEFAULT_TFAM_FILENAME;
 extern const string HELP_TFAM_FILENAME;
 
+extern const string ARG_VCF_FILENAME;
+extern const string DEFAULT_VCF_FILENAME;
+extern const string HELP_VCF_FILENAME;
+
+extern const string ARG_MAF;
+extern const double DEFAULT_MAF;
+extern const string HELP_MAF;
+
 extern const string ARG_SORT;
 extern const int DEFAULT_SORT;
 extern const string HELP_SORT;
@@ -72,9 +80,10 @@ extern const string HELP_IBS_LONG;
 
 param_t *getCLI(int argc, char *argv[]);
 string getCommandLineString(int argc, char *argv[]);
+bool check_maf(double maf);
 bool check_int_gt_0(int n);
 bool check_int_ge_0(int n);
 bool check_sort(int sort, int ndcols);
-bool check_file_type(bool STRU, bool TPED, bool TFAM);
+bool check_file_type(bool STRU, bool TPED, bool TFAM, bool VCF);
 
 #endif

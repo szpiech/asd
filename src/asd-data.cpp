@@ -1024,6 +1024,220 @@ structure_data *readData_tped_tfam(string tped_filename, string tfam_filename, i
 	return data;
 }
 
+structure_data *readData_vcf(string vcf_filename, int &nrow, int &nloci, double MAF) {
+	string line;
+	nrow = 0;
+	nloci = 0;
+	igzstream fin;
+
+	int nkeep = 0;
+
+	fin.open(vcf_filename.c_str());
+	if (fin.fail())
+	{
+		LOG.err("ERROR: Coult not open", vcf_filename);
+		throw - 1;
+	}
+
+	vector<double> AF0;
+	int numComments = 0;
+	int previous_nind = -1;
+	int current_nind = 0;
+	stringstream ss;
+	string gt;
+	int n = 0;
+	int n0 = 0;
+	string a1, a2;
+	while (getline(fin, line)) {
+		if (line[0] == '#') {
+			numComments++;
+			continue;
+		}
+		nloci++;
+		current_nind = countFields(line);
+		if (previous_nind >= 0 && previous_nind != current_nind)
+		{
+			cerr << "ERROR: line " << nloci << " of " << vcf_filename << " has " << current_nind
+			     << " fields, but the previous line has " << previous_nind << " fields.\n";
+			throw 0;
+		}
+		previous_nind = current_nind;
+		nrow = 2 * (current_nind - 9);
+		ss.str(line);
+		n = 0;
+		n0 = 0;
+		for (int i = 0; i < current_nind; i++) {
+			ss >> gt;
+			if (i < 9) continue;
+			if (gt.compare("./.") == 0 || gt.compare(".|.") == 0 || gt.compare(".") == 0) {
+				continue;
+			}
+			a1 = gt[0];
+			a2 = gt[2];
+			if (atoi(a1.c_str()) == 0) n0++;
+			if (atoi(a2.c_str()) == 0) n0++;
+			n+=2;
+		}
+		AF0.push_back(double(n0) / double(n));
+		if (AF0[nloci] >= MAF && AF0[nloci] <= 1 - MAF) nkeep++;
+	}
+	fin.close();
+	fin.clear();
+
+	fin.open(vcf_filename.c_str());
+
+	structure_data *data = new structure_data;
+
+	int nind = nrow / 2;
+
+	data->nind = nind;
+	data->data = new short*[nind];
+	for (int i = 0; i < nind; i++) data->data[i] = new short[nkeep];
+	data->ind_names = new string[nind];
+
+	for (int i = 0; i < numComments - 1; i++) getline(fin, line);
+	for (int i = 0; i < 9; i++) fin >> line;
+	for (int i = 0; i < nind; i++) fin >> data->ind_names[i];
+
+	data->nloci = nkeep;
+	LOG.log("Loci filtered:", nloci-nkeep);
+	int i = 0;
+	for (int locus = 0; locus < nloci; locus++)
+	{
+		if (AF0[locus] >= MAF && AF0[locus] <= 1 - MAF) {
+			for (int field = 0; field < 9; field++) fin >> line;
+			for (int ind = 0; ind < nind; ind++) {
+				fin >> gt;
+				if (gt.compare("./.") == 0 || gt.compare(".|.") == 0 || gt.compare(".") == 0) {
+					data->data[ind][i] = -9;
+					i++;
+					continue;
+				}
+				else {
+					a1 = gt[0];
+					a2 = gt[2];
+				}
+				if (atoi(a1.c_str()) != 0 && atoi(a1.c_str()) != 1 && atoi(a2.c_str()) != 1 && atoi(a2.c_str()) != 0) {
+					LOG.err("ERORR: --biallelic flag set, but found more than 2 alleles at locus", locus + 1);
+					throw - 1;
+				}
+				else {
+					data->data[ind][i] = atoi(a1.c_str()) + atoi(a2.c_str());
+				}
+			}
+			i++;
+		}
+	}
+
+	return data;
+}
+
+structure_data *readData_vcf2(string vcf_filename, int &nrow, int &nloci, double MAF) {
+	string line;
+	nrow = 0;
+	nloci = 0;
+	igzstream fin;
+
+	int nkeep = 0;
+
+	fin.open(vcf_filename.c_str());
+	if (fin.fail())
+	{
+		LOG.err("ERROR: Coult not open", vcf_filename);
+		throw - 1;
+	}
+
+	vector<double> AF0;
+	int numComments = 0;
+	int previous_nind = -1;
+	int current_nind = 0;
+	stringstream ss;
+	string gt;
+	int n = 0;
+	int n0 = 0;
+	string a1, a2;
+	while (getline(fin, line)) {
+		if (line[0] == '#') {
+			numComments++;
+			continue;
+		}
+		nloci++;
+		current_nind = countFields(line);
+		if (previous_nind >= 0 && previous_nind != current_nind)
+		{
+			cerr << "ERROR: line " << nloci << " of " << vcf_filename << " has " << current_nind
+			     << " fields, but the previous line has " << previous_nind << " fields.\n";
+			throw 0;
+		}
+		previous_nind = current_nind;
+		nrow = 2 * (current_nind - 9);
+		ss.str(line);
+		n = 0;
+		n0 = 0;
+		for (int i = 0; i < current_nind; i++) {
+			ss >> gt;
+			if (i < 9) continue;
+			if (gt.compare("./.") == 0 || gt.compare(".|.") == 0 || gt.compare(".") == 0) {
+				continue;
+			}
+			a1 = gt[0];
+			a2 = gt[2];
+			if (atoi(a1.c_str()) == 0) n0++;
+			if (atoi(a2.c_str()) == 0) n0++;
+			n+=2;
+		}
+		AF0.push_back(double(n0) / double(n));
+		if (AF0[nloci] >= MAF && AF0[nloci] <= 1 - MAF) nkeep++;
+	}
+	fin.close();
+	fin.clear();
+
+	fin.open(vcf_filename.c_str());
+
+	structure_data *data = new structure_data;
+
+	int nind = nrow / 2;
+
+	data->nind = nind;
+	data->data = new short*[2*nind];
+	for (int i = 0; i < nind; i++) data->data[i] = new short[nkeep];
+	data->ind_names = new string[nind];
+
+	for (int i = 0; i < numComments - 1; i++) getline(fin, line);
+	for (int i = 0; i < 9; i++) fin >> line;
+	for (int i = 0; i < nind; i++) fin >> data->ind_names[i];
+
+	data->nloci = nkeep;
+	LOG.log("Loci filtered:", nloci-nkeep);
+	int i = 0;
+	for (int locus = 0; locus < nloci; locus++)
+	{
+		if (AF0[locus] >= MAF && AF0[locus] <= 1 - MAF) {
+			for (int field = 0; field < 9; field++) fin >> line;
+			int index = 0;
+			for (int ind = 0; ind < nind; ind++) {
+				fin >> gt;
+				if (gt.compare("./.") == 0 || gt.compare(".|.") == 0 || gt.compare(".") == 0) {
+					data->data[index][i] = -9;
+					index++;
+					data->data[index][i] = -9;
+					index++;
+				}
+				else {
+					a1 = gt[0];
+					a2 = gt[2];
+					data->data[index][i] = atoi(a1.c_str());
+					index++;
+					data->data[index][i] = atoi(a2.c_str());
+					index++;
+				}
+			}
+			i++;
+		}
+	}
+
+	return data;
+}
 
 void readData_pop_freq(igzstream & fin, structure_data & data,
                        int sort, int ndcols, int ndrows,
