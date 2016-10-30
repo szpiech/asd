@@ -1053,7 +1053,6 @@ structure_data *readData_vcf(string vcf_filename, int &nrow, int &nloci, double 
 			numComments++;
 			continue;
 		}
-		nloci++;
 		current_nind = countFields(line);
 		if (previous_nind >= 0 && previous_nind != current_nind)
 		{
@@ -1080,6 +1079,7 @@ structure_data *readData_vcf(string vcf_filename, int &nrow, int &nloci, double 
 		}
 		AF0.push_back(double(n0) / double(n));
 		if (AF0[nloci] >= MAF && AF0[nloci] <= 1 - MAF) nkeep++;
+		nloci++;
 	}
 	fin.close();
 	fin.clear();
@@ -1161,11 +1161,10 @@ structure_data *readData_vcf2(string vcf_filename, int &nrow, int &nloci, double
 			numComments++;
 			continue;
 		}
-		nloci++;
 		current_nind = countFields(line);
 		if (previous_nind >= 0 && previous_nind != current_nind)
 		{
-			cerr << "ERROR: line " << nloci << " of " << vcf_filename << " has " << current_nind
+			cerr << "ERROR: line " << nloci+1 << " of " << vcf_filename << " has " << current_nind
 			     << " fields, but the previous line has " << previous_nind << " fields.\n";
 			throw 0;
 		}
@@ -1188,10 +1187,12 @@ structure_data *readData_vcf2(string vcf_filename, int &nrow, int &nloci, double
 		}
 		AF0.push_back(double(n0) / double(n));
 		if (AF0[nloci] >= MAF && AF0[nloci] <= 1 - MAF) nkeep++;
+
+		nloci++;
 	}
+
 	fin.close();
 	fin.clear();
-
 	fin.open(vcf_filename.c_str());
 
 	structure_data *data = new structure_data;
@@ -1200,7 +1201,7 @@ structure_data *readData_vcf2(string vcf_filename, int &nrow, int &nloci, double
 
 	data->nind = nind;
 	data->data = new short*[2*nind];
-	for (int i = 0; i < nind; i++) data->data[i] = new short[nkeep];
+	for (int i = 0; i < 2*nind; i++) data->data[i] = new short[nkeep];
 	data->ind_names = new string[nind];
 
 	for (int i = 0; i < numComments - 1; i++) getline(fin, line);
