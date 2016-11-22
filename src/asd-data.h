@@ -71,15 +71,24 @@ typedef struct
 */
 void combine_partial_files(param_t *params);
 
-structure_data *readData_stru(string infile, int sort, int &nrows, int &ncols, string STRU_MISSING);
-structure_data *readData_stru2(string infile, int sort, int &nrows, int &ncols, string STRU_MISSING);
+structure_data *readData_stru(string infile, int sort, int &nrows, int &ncols, double MAF, string STRU_MISSING);
+structure_data *readData_stru2(string infile, int sort, int &nrows, int &ncols, double MAF, string STRU_MISSING);
 
-structure_data *readData_tped_tfam(string tped_filename, string tfam_filename, int &nrow, int &nloci, string TPED_MISSING);
-structure_data *readData_tped_tfam2(string tped_filename, string tfam_filename, int &nrow, int &nloci, string TPED_MISSING);
+vector<double>* multiallelic_maf_stru(string infile, int sort, int &nrow, int &ncols, int &ndrows, int &ndcols, int &nkeep, double MAF, string STRU_MISSING);
+
+structure_data *readData_tped_tfam(string tped_filename, string tfam_filename, int &nrow, int &nloci, double MAF, string TPED_MISSING);
+structure_data *readData_tped_tfam2(string tped_filename, string tfam_filename, int &nrow, int &nloci, double MAF, string TPED_MISSING);
+
+vector<double>* biallelic_maf_tped(string tped_filename, string tfam_filename, int &nrow, int &nloci, int &nkeep, double MAF, string TPED_MISSING);
+vector<double>* multiallelic_maf_tped(string tped_filename, string tfam_filename, int &nrow, int &nloci, int &nkeep, double MAF, string TPED_MISSING);
 
 structure_data *readData_vcf(string vcf_filename, int &nrow, int &nloci, double MAF);
 structure_data *readData_vcf2(string vcf_filename, int &nrow, int &nloci, double MAF);
 
+vector<double>* biallelic_maf_vcf(string vcf_filename, int &nrow, int &nloci, int &nkeep, int &numComments, double MAF);
+vector<double>* multiallelic_maf_vcf(string vcf_filename, int &nrow, int &nloci, int &nkeep, int &numComments, double MAF);
+
+double biallelic_ehom(double MAF);
 /*
 void readData_ind_asd(igzstream &fin, structure_data &data,
                       int sort, int ndcols, int ndrows, int nrows, int ncols, string STRU_MISSING);

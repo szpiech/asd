@@ -136,10 +136,10 @@ int main(int argc, char *argv[])
     if (STRU) {
         try {
             if (BIALLELIC) {
-                data = readData_stru(filename, sort, nrows, ncols, STRU_MISSING);
+                data = readData_stru(filename, sort, nrows, ncols, MAF, STRU_MISSING);
             }
             else {
-                data = readData_stru2(filename, sort, nrows, ncols, STRU_MISSING);
+                data = readData_stru2(filename, sort, nrows, ncols, MAF, STRU_MISSING);
             }
         }
         catch (...) {
@@ -149,10 +149,10 @@ int main(int argc, char *argv[])
     else if (TPED) {
         try {
             if (BIALLELIC) {
-                data = readData_tped_tfam(tped_filename, tfam_filename, nrows, ncols, TPED_MISSING);
+                data = readData_tped_tfam(tped_filename, tfam_filename, nrows, ncols, MAF, TPED_MISSING);
             }
             else {
-                data = readData_tped_tfam2(tped_filename, tfam_filename, nrows, ncols, TPED_MISSING);
+                data = readData_tped_tfam2(tped_filename, tfam_filename, nrows, ncols, MAF, TPED_MISSING);
             }
         }
         catch (...) {
@@ -173,7 +173,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    LOG.log("Sample size:", nrows);
+    LOG.log("Sample size:", nrows/2);
     LOG.log("Number of loci:", ncols);
 
     int nind = nrows / 2;
