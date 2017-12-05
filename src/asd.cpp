@@ -78,7 +78,13 @@ int main(int argc, char *argv[])
     if (TPED) LOG.log("Input tped file:", tped_filename);
     if (TFAM) LOG.log("Input tfam file:", tfam_filename);
     if (VCF) LOG.log("Input vcf file:", vcf_filename);
+    bool GRM = params->getBoolFlag(ARG_GRM);
     bool BIALLELIC = params->getBoolFlag(ARG_BIALLELIC);
+    if(GRM && !BIALLELIC){
+        LOG.log("WARNING: --grm forces --biallelic.");
+        BIALLELIC = true;
+    }
+    LOG.log("Calculate GRM:", GRM);
     LOG.log("Biallelic flag set (increases efficiency):", BIALLELIC);
 
     double MAF = params->getDoubleFlag(ARG_MAF);
@@ -111,6 +117,10 @@ int main(int argc, char *argv[])
     else LOG.log("Print partial allele sharing matrix:", PRINT_PARTIAL);
 
     bool CALC_ALL_IBS = params->getBoolFlag(ARG_CALC_IBS);
+    if(CALC_ALL_IBS && GRM){
+        LOG.err("ERROR: --grm and --ibs incompatible.");
+        return -1;
+    }
     LOG.log("Output IBS matricies:", CALC_ALL_IBS);
 
     string STRU_MISSING = params->getStringFlag(ARG_STRU_MISSING);
@@ -201,29 +211,35 @@ int main(int argc, char *argv[])
         order->CALC_ALL_IBS = CALC_ALL_IBS;
         order->bar = &pbar;
         order->threads = num_threads;
-        if (BIALLELIC) {
-            pthread_create(&(peer[i]),
-                           NULL,
-                           (void *(*)(void *))calc_pw_as_dist,
-                           (void *)order);
+        if(!GRM){
+            if (BIALLELIC) {
+                pthread_create(&(peer[i]),
+                               NULL,
+                               (void *(*)(void *))calc_pw_as_dist,
+                               (void *)order);
+            }
+            else {
+                pthread_create(&(peer[i]),
+                               NULL,
+                               (void *(*)(void *))calc_pw_as_dist2,
+                               (void *)order);
+            }
         }
-        else {
+        else{
             pthread_create(&(peer[i]),
-                           NULL,
-                           (void *(*)(void *))calc_pw_as_dist2,
-                           (void *)order);
-
+                            NULL,
+                            (void *(*)(void *))calc_grm,
+                            (void *)order);
         }
-
     }
 
     for (int i = 0; i < num_threads; i++) pthread_join(peer[i], NULL);
 
     cerr << endl;
 
-    finalize_calculations(nind, ncols, CALC_ALL_IBS);
+    finalize_calculations(nind, ncols, CALC_ALL_IBS, GRM);
 
-    write_dist_matrix(outfile, nind, ncols, data->ind_names, PRINT_PARTIAL, PRINT_LOG, PRINT_LONG);
+    write_dist_matrix(outfile, nind, ncols, data->ind_names, PRINT_PARTIAL, PRINT_LOG, PRINT_LONG, GRM);
 
     if (CALC_ALL_IBS)
     {

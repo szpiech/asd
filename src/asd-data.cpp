@@ -202,12 +202,12 @@ bool init_storage(int nind, bool CALC_ALL_IBS) {
 	return true;
 }
 
-bool finalize_calculations(int nind, int ncols, bool CALC_ALL_IBS) {
+bool finalize_calculations(int nind, int ncols, bool CALC_ALL_IBS, bool GRM) {
 	for (int i = 0; i < nind; i++)
 	{
 		for (int j = i; j < nind; j++)
 		{
-			if (i == j)
+			if (i == j && !GRM)
 			{
 				DIST_MAT[i][j] = ncols + NUM_LOCI[i][j];
 				//NUM_LOCI[i][j] = ncols+NUM_LOCI[i][j];
@@ -320,14 +320,14 @@ void write_ibs_matrices(string outfile, int nind, int ncols, string *ind_names, 
 	return;
 }
 
-void write_dist_matrix(string outfile, int nind, int ncols, string *ind_names, bool PRINT_PARTIAL, bool PRINT_LOG, bool PRINT_LONG) {
+void write_dist_matrix(string outfile, int nind, int ncols, string *ind_names, bool PRINT_PARTIAL, bool PRINT_LOG, bool PRINT_LONG, bool GRM) {
 	ofstream out;
-	string type = "dist";
+	string type = (GRM ? "grm" : "dist");
 	if (!PRINT_PARTIAL) {
-		outfile += ".asd.dist";
+		outfile += (GRM ? ".grm" : ".asd.dist");
 	}
 	else {
-		outfile += ".asd.partial";
+		outfile += (GRM ? ".grm.partial" : ".asd.partial");
 	}
 
 	out.open(outfile.c_str());
@@ -353,26 +353,24 @@ void write_dist_matrix(string outfile, int nind, int ncols, string *ind_names, b
 	}
 
 	if (!PRINT_LONG) {
-		for (int i = 0; i < nind; i++)
-		{
-			out << ind_names[i] << " ";
-		}
+		for (int i = 0; i < nind; i++) out << ind_names[i] << " ";
 		out << endl;
 
-		for (int i = 0; i < nind; i++)
-		{
+		for (int i = 0; i < nind; i++){
 			out << ind_names[i] << " ";
-			for (int j = 0; j < nind ; j++)
-			{
-				if (PRINT_LOG)
-				{
+			for (int j = 0; j < nind ; j++){
+				if (PRINT_LOG){
 					out << 0 - log(double(DIST_MAT[i][j]) /
 					               (double(ncols) + double(NUM_LOCI[i][j])))
 					    << " ";
 				}
-				else if (!PRINT_PARTIAL)
-				{
+				else if (!PRINT_PARTIAL && !GRM){
 					out << 1 - (double(DIST_MAT[i][j]) /
+					            (double(ncols) + double(NUM_LOCI[i][j])))
+					    << " ";
+				}
+				else if (!PRINT_PARTIAL && GRM){
+					out << (double(DIST_MAT[i][j]) /
 					            (double(ncols) + double(NUM_LOCI[i][j])))
 					    << " ";
 				}
@@ -388,6 +386,11 @@ void write_dist_matrix(string outfile, int nind, int ncols, string *ind_names, b
 				if (PRINT_LOG) {
 					out << 0 - log(double(DIST_MAT[i][j]) /
 					               (double(ncols) + double(NUM_LOCI[i][j])))
+					    << endl;
+				}
+				else if(GRM){
+					out << (double(DIST_MAT[i][j]) /
+					            (double(ncols) + double(NUM_LOCI[i][j])))
 					    << endl;
 				}
 				else {

@@ -11,4 +11,8 @@ double proportion_shared2(short A1, short A2, short B1, short B2);
 void calc_pw_as_dist(void *work_order);
 void calc_pw_as_dist2(void *order);
 
+void calc_grm(void *order);
+
+double gen_rel(short A, short B, double mu);
+
 #endif

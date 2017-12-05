@@ -12,17 +12,19 @@ const string HELP_OUTFILE = "Basename for output files.";
 
 const string ARG_FILENAME = "--stru";
 const string DEFAULT_FILENAME = "__none";
-const string HELP_FILENAME = "The input data filename (stru format). Change missing data code with\
-\n--missing-stru.";
+const string HELP_FILENAME = "The input data filename (stru format).\
+	\n\tChange missing data code with --missing-stru.";
 
 const string ARG_TPED_FILENAME = "--tped";
 const string DEFAULT_TPED_FILENAME = "__none";
-const string HELP_TPED_FILENAME = "The input data filename (tped format). Requires a .tfam file (--tfam).\
-\nChange missing data code with --missing-tped.";
+const string HELP_TPED_FILENAME = "The input data filename (tped format).\
+	\n\tRequires a .tfam file (--tfam).\
+	\n\tChange missing data code with --missing-tped.";
 
 const string ARG_TFAM_FILENAME = "--tfam";
 const string DEFAULT_TFAM_FILENAME = "__none";
-const string HELP_TFAM_FILENAME = "The input data filename (tfam format), also requires a .tped file (--tped).";
+const string HELP_TFAM_FILENAME = "The input data filename (tfam format).\
+	\n\tRequires a .tped file (--tped).";
 
 const string ARG_VCF_FILENAME = "--vcf";
 const string DEFAULT_VCF_FILENAME = "__none";
@@ -30,7 +32,7 @@ const string HELP_VCF_FILENAME = "The input data filename (vcf format).";
 
 const string ARG_MAF = "--maf";
 const double DEFAULT_MAF = 0.0;
-const string HELP_MAF = "";
+const string HELP_MAF = "Filter sites with a MAF below this. This part may be slow for very large files.";
 
 const string ARG_SORT = "--id";
 const int DEFAULT_SORT = 1;
@@ -43,9 +45,11 @@ const string HELP_THREAD = "Number of threads to spawn for faster calculation.";
 const string ARG_PARTIAL = "--partial";
 const bool DEFAULT_PARTIAL = false;
 const string HELP_PARTIAL =
-    "If set, outputs two nind x nind matrices. The first is the number of loci used\
-\nfor each pairwise comparison, and the second is the untransformed dist/IBS\
-\nmatrix. Useful for splitting up very large jobs. Can combine with --combine.";
+    "If set, outputs two nind x nind matrices.\
+    \n\tThe first is the number of loci used for each pairwise\
+    \n\tcomparison, and the second is the untransformed dist/IBS\
+	\n\tmatrix. Useful for splitting up very large jobs.\
+	\n\tCan combine with --combine.";
 
 const string ARG_LOG = "--log";
 const bool DEFAULT_LOG = false;
@@ -61,23 +65,29 @@ const string HELP_TPED_MISSING = "For stru files, set the missing data value.";
 
 const string ARG_BIALLELIC = "--biallelic";
 const bool DEFAULT_BIALLELIC = false;
-const string HELP_BIALLELIC = "Set for more efficient computations when all loci are biallelic.";
+const string HELP_BIALLELIC = "Set for more efficient computations\
+	\n\twhen all loci are biallelic.";
 
 const string ARG_COMBINE = "--combine";
 const string DEFAULT_COMBINE = "__none";
-const string HELP_COMBINE = "Combine several files generated with --partial.";
+const string HELP_COMBINE = "Combine several files\
+	\n\tgenerated with --partial.";
 
 const string ARG_LONG_FORMAT = "--long";
 const bool DEFAULT_LONG_FORMAT = false;
 const string HELP_LONG_FORMAT = "Instead of printing a matrix, print allele sharing distances one\
-\nper row. Formatted <ID1> <ID2> <allele sharing distance>.\
-\nNot compatible with --partial.";
+	\n\tper row. Formatted <ID1> <ID2> <allele sharing distance>.\
+	\n\tNot compatible with --partial.";
 
 const string ARG_IBS_LONG = "--long-ibs";
 const bool DEFAULT_IBS_LONG = false;
 const string HELP_IBS_LONG = "Instead of printing a matrix, print IBS calculations one\
-\nper row. Formatted <ID1> <ID2> <IBS0/1/2>.\
-\nNot compatible with --partial.";
+	\n\tper row. Formatted <ID1> <ID2> <IBS0/1/2>.\
+	\n\tNot compatible with --partial.";
+
+const string ARG_GRM = "--grm";
+const bool DEFAULT_GRM = false;
+const string HELP_GRM = "Calculate the genomic relationship matrix.";
 
 string getCommandLineString(int argc, char *argv[])
 {
@@ -108,6 +118,7 @@ param_t *getCLI(int argc, char *argv[])
 	params->addListFlag(ARG_COMBINE, DEFAULT_COMBINE, "", HELP_COMBINE);
 	params->addFlag(ARG_LONG_FORMAT, DEFAULT_LONG_FORMAT, "", HELP_LONG_FORMAT);
 	params->addFlag(ARG_IBS_LONG, DEFAULT_IBS_LONG, "", HELP_IBS_LONG);
+	params->addFlag(ARG_GRM, DEFAULT_GRM, "", HELP_GRM);
 
 	params->setPreamble("asd v" + VERSION);
 

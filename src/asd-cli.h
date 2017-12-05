@@ -78,6 +78,11 @@ extern const string ARG_IBS_LONG;
 extern const bool DEFAULT_IBS_LONG;
 extern const string HELP_IBS_LONG;
 
+extern const string ARG_GRM;
+extern const bool DEFAULT_GRM;
+extern const string HELP_GRM;
+
+
 param_t *getCLI(int argc, char *argv[]);
 string getCommandLineString(int argc, char *argv[]);
 bool check_maf(double maf);

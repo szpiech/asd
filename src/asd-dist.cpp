@@ -252,6 +252,143 @@ void calc_pw_as_dist2(void *order)
 
 }
 
+void calc_grm(void *order)
+{
+	work_order_t *p = (work_order_t *)order;
+	short **data = p->stru_data->data;
+	int size = p->stru_data->nind;
+	int numThreads = p->threads;
+
+	Bar *pbar = p->bar;
+	int step = size / pbar->totalTicks;
+	if (step == 0) step = 1;
+
+	short A, B;
+
+	double ps;
+	double *row = NULL;
+	int *num_loci = NULL;
+	int *ibs0 = NULL;
+	int *ibs1 = NULL;
+	int *ibs2 = NULL;
+
+	double *mu;
+	mu = new double[p->last_index - p->first_index];
+	int *n;
+	n = new int[p->last_index - p->first_index];
+	for (int j = 0; j < size; j++){
+		for (int l = p->first_index; l < p->last_index; l++){
+			if(j == 0){
+				mu[l] = 0;
+				n[l] = 0;
+			}
+
+			if(data[j][l] >= 0){
+				mu[l] += data[j][l];
+				n[l]++;
+			}
+
+			if(j == size-1){
+				mu[l] /= double(n[l]);	
+			}
+		}
+
+	}
+
+	delete [] n;
+
+	for (int j = 0; j < size; j++)
+	{
+		if (j % step == 0) advanceBar(*pbar, double(step));
+
+		row = new double[size - j];
+		num_loci = new int[size - j];
+		
+		for (int k = j; k < size; k++)
+		{
+			row[k - j] = 0;
+			num_loci[k - j] = 0;
+			for (int l = p->first_index; l < p->last_index; l++)
+			{
+				/*
+				if (j == k)
+				{
+					A = data[j][l];
+					//B = data[k][l];
+					if (A < 0)
+					{
+						num_loci[k - j]--;
+					}
+				}
+				else
+				*/
+				{
+					A = data[j][l];
+					B = data[k][l];
+					if (A < 0 || B < 0 || mu[l] == 0 || mu[l] == 1)
+					{
+						num_loci[k - j]--;
+					}
+					else
+					{
+						ps = gen_rel(A, B, mu[l]);
+						row[k - j] += ps;
+						/*
+						if (p->CALC_ALL_IBS)
+						{
+							if (ps == 1) ibs2[k - j]++;
+							if (ps == 0.5) ibs1[k - j]++;
+							if (ps == 0) ibs0[k - j]++;
+						}
+						*/
+					}
+				}
+			}
+		}
+
+		pthread_mutex_lock(&mutex_dist_mat);
+		for (int m = j; m < size; m++)  DIST_MAT[j][m] += double(row[m - j]);
+		pthread_mutex_unlock(&mutex_dist_mat);
+
+		pthread_mutex_lock(&mutex_loci_mat);
+		for (int m = j; m < size; m++)  NUM_LOCI[j][m] += num_loci[m - j];
+		pthread_mutex_unlock(&mutex_loci_mat);
+	/*
+		if (p->CALC_ALL_IBS)
+		{
+			pthread_mutex_lock(&mutex_ibs_0);
+			for (int m = j; m < size; m++)  IBS_0_MAT[j][m] += ibs0[m - j];
+			pthread_mutex_unlock(&mutex_ibs_0);
+
+			pthread_mutex_lock(&mutex_ibs_1);
+			for (int m = j; m < size; m++)  IBS_1_MAT[j][m] += ibs1[m - j];
+			pthread_mutex_unlock(&mutex_ibs_1);
+
+			pthread_mutex_lock(&mutex_ibs_2);
+			for (int m = j; m < size; m++)  IBS_2_MAT[j][m] += ibs2[m - j];
+			pthread_mutex_unlock(&mutex_ibs_2);
+		}
+	*/
+		delete [] num_loci;
+		delete [] row;
+		/*
+		if (p->CALC_ALL_IBS)
+		{
+			delete [] ibs0;
+			delete [] ibs1;
+			delete [] ibs2;
+		}
+		*/
+	}
+
+	//delete [] key_list;
+	delete p;
+	delete [] mu;
+	return;
+
+}
+
+
 double proportion_shared2(short A1, short A2, short B1, short B2) {
 
 	if (A1 == B1)
@@ -299,4 +436,9 @@ double proportion_shared(short A, short B)
 	if (abs(A - B) == 0) return 1;
 	if (abs(A - B) == 1) return 0.5;
 	return 0;
+}
+
+double gen_rel(short A, short B, double mu)
+{
+	return ( (double(A) - 2.0*mu) * (double(B) - 2.0*mu) ) / (2.0*mu * (1-mu));
 }
