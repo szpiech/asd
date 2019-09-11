@@ -1,6 +1,6 @@
 #include "asd-cli.h"
 
-const string VERSION = "1.0.1";
+const string VERSION = "1.1.0";
 
 const string ARG_CALC_IBS = "--ibs";
 const bool DEFAULT_CALC_IBS = false;
@@ -13,7 +13,8 @@ const string HELP_OUTFILE = "Basename for output files.";
 const string ARG_FILENAME = "--stru";
 const string DEFAULT_FILENAME = "__none";
 const string HELP_FILENAME = "The input data filename (stru format).\
-	\n\tChange missing data code with --missing-stru.";
+	\n\tChange missing data code with --missing-stru.\
+	\n\tRequires two header rows: locus names, and locus positions.";
 
 const string ARG_TPED_FILENAME = "--tped";
 const string DEFAULT_TPED_FILENAME = "__none";
@@ -30,9 +31,11 @@ const string ARG_VCF_FILENAME = "--vcf";
 const string DEFAULT_VCF_FILENAME = "__none";
 const string HELP_VCF_FILENAME = "The input data filename (vcf format).";
 
+/*
 const string ARG_MAF = "--maf";
 const double DEFAULT_MAF = 0.0;
 const string HELP_MAF = "Filter sites with a MAF below this. This part may be slow for very large files.";
+*/
 
 const string ARG_SORT = "--id";
 const int DEFAULT_SORT = 1;
@@ -63,10 +66,10 @@ const string ARG_TPED_MISSING = "--missing-tped";
 const string DEFAULT_TPED_MISSING = "0";
 const string HELP_TPED_MISSING = "For stru files, set the missing data value.";
 
-const string ARG_BIALLELIC = "--biallelic";
-const bool DEFAULT_BIALLELIC = false;
-const string HELP_BIALLELIC = "Set for more efficient computations\
-	\n\twhen all loci are biallelic.";
+const string ARG_MULTIALLELIC = "--multiallelic";
+const bool DEFAULT_MULTIALLELIC = false;
+const string HELP_MULTIALLELIC = "Set if there are more than two alleles at at least one locus.\
+	\n\tComputations are less efficient with this flag set.";
 
 const string ARG_COMBINE = "--combine";
 const string DEFAULT_COMBINE = "__none";
@@ -89,6 +92,22 @@ const string ARG_GRM = "--grm";
 const bool DEFAULT_GRM = false;
 const string HELP_GRM = "Calculate the genomic relationship matrix.";
 
+const string ARG_KEEP_SITES_ID = "--keep-sites-id";
+const string DEFAULT_KEEP_SITES_ID = "__none";
+const string HELP_KEEP_SITES_ID = "A file containing a list of site IDs,\
+\n\tone per line, to keep for computations.";
+
+const string ARG_KEEP_SITES_POS = "--keep-sites-pos";
+const string DEFAULT_KEEP_SITES_POS = "__none";
+const string HELP_KEEP_SITES_POS = "A file containing a list of site positions,\
+\n\tone per line, to keep for computations.";
+
+const string ARG_KEEP_IND = "--keep-ind";
+const string DEFAULT_KEEP_IND = "__none";
+const string HELP_KEEP_IND = "A file containing a list of individual IDs,\
+\n\tone per line, to keep for computations.";
+
+
 string getCommandLineString(int argc, char *argv[])
 {
 	string str = argv[0];
@@ -108,17 +127,20 @@ param_t *getCLI(int argc, char *argv[])
 	params->addFlag(ARG_TPED_FILENAME, DEFAULT_TPED_FILENAME, "", HELP_TPED_FILENAME);
 	params->addFlag(ARG_TFAM_FILENAME, DEFAULT_TFAM_FILENAME, "", HELP_TFAM_FILENAME);
 	params->addFlag(ARG_VCF_FILENAME, DEFAULT_VCF_FILENAME, "", HELP_VCF_FILENAME);
-	params->addFlag(ARG_MAF, DEFAULT_MAF, "", HELP_MAF);
+	//params->addFlag(ARG_MAF, DEFAULT_MAF, "", HELP_MAF);
 	params->addFlag(ARG_SORT, DEFAULT_SORT, "", HELP_SORT);
 	params->addFlag(ARG_PARTIAL, DEFAULT_PARTIAL, "", HELP_PARTIAL);
 	params->addFlag(ARG_LOG, DEFAULT_LOG, "", HELP_LOG);
 	params->addFlag(ARG_STRU_MISSING, DEFAULT_STRU_MISSING, "", HELP_STRU_MISSING);
 	params->addFlag(ARG_TPED_MISSING, DEFAULT_TPED_MISSING, "", HELP_TPED_MISSING);
-	params->addFlag(ARG_BIALLELIC, DEFAULT_BIALLELIC, "", HELP_BIALLELIC);
+	params->addFlag(ARG_MULTIALLELIC, DEFAULT_MULTIALLELIC, "", HELP_MULTIALLELIC);
 	params->addListFlag(ARG_COMBINE, DEFAULT_COMBINE, "", HELP_COMBINE);
 	params->addFlag(ARG_LONG_FORMAT, DEFAULT_LONG_FORMAT, "", HELP_LONG_FORMAT);
 	params->addFlag(ARG_IBS_LONG, DEFAULT_IBS_LONG, "", HELP_IBS_LONG);
 	params->addFlag(ARG_GRM, DEFAULT_GRM, "", HELP_GRM);
+	params->addFlag(ARG_KEEP_SITES_ID, DEFAULT_KEEP_SITES_ID, "", HELP_KEEP_SITES_ID);
+	params->addFlag(ARG_KEEP_SITES_POS, DEFAULT_KEEP_SITES_POS, "", HELP_KEEP_SITES_POS);
+	params->addFlag(ARG_KEEP_IND, DEFAULT_KEEP_IND, "", HELP_KEEP_IND);
 
 	params->setPreamble("asd v" + VERSION);
 

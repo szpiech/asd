@@ -14,6 +14,26 @@ pthread_mutex_t mutex_ibs_0 = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex_ibs_1 = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex_ibs_2 = PTHREAD_MUTEX_INITIALIZER;
 
+map<string,bool>* readSubsetFile(string infile){
+	igzstream fin;
+	fin.open(infile.c_str());
+
+	if(fin.fail()){
+		LOG.err("ERROR: Failed to open",infile);
+		throw 0;
+	}
+
+	string id;
+	map<string,bool>* subset = new map<string,bool>;
+	
+	while(fin >> id) {
+		subset->operator[](id) = true;
+	}
+
+	fin.close();
+	return subset;
+}
+
 void combine_partial_files(param_t *params) {
 
 	string outfile = params->getStringFlag(ARG_OUTFILE);
@@ -466,8 +486,8 @@ vector<double>* biallelic_maf_stru(string infile, int sort, int &nrows, int &nco
 			ndcols = currentCols - ncols;
 			ndrows = totalRows;
 
-			if (!check_int_gt_0(ndrows)) {
-				LOG.err("ERROR: Non-data rows must be > 0. Found", ndrows);
+			if (ndrows < 2) {
+				LOG.err("ERROR: Non-data rows must be >= 2. Found", ndrows);
 				throw 0;
 			}
 			LOG.log("Non-data header rows:", ndrows);
@@ -511,30 +531,15 @@ vector<double>* biallelic_maf_stru(string infile, int sort, int &nrows, int &nco
 		throw 0;
 	}
 
-	vector<double> *AF0 = new vector<double>;
-	//double MAF_HOM = biallelic_ehom(MAF);
-	for (int i = 0; i < ncols; i++) {
-		int n = 0;
-		double maf = 0;
-		for (std::map<string, int>::iterator it = allele2count[i].begin(); it != allele2count[i].end(); ++it) {
-			if ((it->first).compare(STRU_MISSING) != 0) {
-				n += it->second;
-				maf = it->second;
-			}
-		}
-		maf /= n;
-		if (maf <= 1 - MAF && maf >= MAF) nkeep++;
-		AF0->push_back(maf);
-	}
-
 	fin.close();
 
-	LOG.log("Loci filtered:", ncols - nkeep);
+	nkeep = ncols;
 	delete [] allele2count;
-	return AF0;
+	return NULL;
 }
 
-structure_data *readData_stru(string infile, int sort, int &nrows, int &ncols, double MAF, string STRU_MISSING) {
+structure_data *readData_stru(string infile, int sort, int &nrows, int &ncols, double MAF, string STRU_MISSING,
+	map<string, bool> *keepIND, map<string, bool> *keepSNP, map<string, bool> *keepPOS, bool KEEP_IND, bool KEEP_SNP, bool KEEP_POS) {
 	int ndcols = -1;
 	int ndrows = -1;
 	nrows = -1;
@@ -545,34 +550,76 @@ structure_data *readData_stru(string infile, int sort, int &nrows, int &ncols, d
 
 	vector<double> *AF0 = biallelic_maf_stru(infile, sort, nrows, ncols, ndrows, ndcols, nkeep, MAF, STRU_MISSING);
 
+	int expectednindFilter;
+
+	if(KEEP_IND) expectednindFilter = keepIND->size();
+	else expectednindFilter = nrows/2;	
+
 	fin.open(infile.c_str());
+
+	bool *keep_locus;
+	if(KEEP_SNP || KEEP_POS) keep_locus = new bool[ncols];
+
+	string locus_name;
+	int totalLoci = 0;
+	//Get locus names
+	if(KEEP_SNP){
+		for (int locus = 0; locus < ncols; locus++){
+			fin >> locus_name;
+			if(keepSNP->count(locus_name) > 0){
+				keep_locus[locus] = true;
+				totalLoci++;
+			}
+			else{
+				keep_locus[locus] = false;
+			}
+		}
+	}
+	else{
+		getline(fin, line);
+	}
+	//Get locus positions
+	if(KEEP_POS){
+		for (int locus = 0; locus < ncols; locus++){
+			fin >> locus_name;
+			if(keepPOS->count(locus_name) > 0){
+				keep_locus[locus] = true;
+				totalLoci++;
+			}
+			else{
+				keep_locus[locus] = false;
+			}
+		}
+	}
+	else{
+		getline(fin, line);
+	}
+	//toss out other non-data rows
+	for (int i = 2; i < ndrows; i++) getline(fin, line);
+
+	if(totalLoci == 0) totalLoci = ncols;
 
 	structure_data *data = new structure_data;
 	int nind = nrows / 2;
-	data->nind = nind;
-	data->data = new short*[nind];
-	for (int i = 0; i < nind; i++) {
-		data->data[i] = new short[ncols];
+	data->nindAllocated = expectednindFilter;
+	data->data = new short*[expectednindFilter];
+	for (int i = 0; i < expectednindFilter; i++) {
+		data->data[i] = new short[totalLoci];
 	}
-	data->ind_names = new string[nind];
+	data->ind_names = new string[expectednindFilter];
 
-	//toss out non-data rows
-	for (int i = 0; i < ndrows; i++) getline(fin, line);
-
-	data->nloci = nkeep;
-
-	map<string, short> *allele2code = new map<string, short>[nkeep];
-	short *lastAlleleCode = new short[nkeep];
-	for (int i = 0; i < nkeep; i++) {
+	map<string, short> *allele2code = new map<string, short>[totalLoci];
+	short *lastAlleleCode = new short[totalLoci];
+	for (int i = 0; i < totalLoci; i++) {
 		allele2code[i][STRU_MISSING] = -9;
 		lastAlleleCode[i] = -1;
 	}
 
-	int index;
-	string field, key, allele1, allele2, line1, line2;
-	stringstream sin1, sin2;
+	int index, actualInd = 0;
+	string field, indID, allele1, allele2, line1, line2;
 	short genotypeCode;
 	for (int ind = 0; ind < nind; ind++) {
+		stringstream sin1, sin2;
 		getline(fin, line1);
 		sin1 << line1;
 		getline(fin, line2);
@@ -581,17 +628,26 @@ structure_data *readData_stru(string infile, int sort, int &nrows, int &ncols, d
 		for (int i = 1; i <= ndcols; i++) {
 			sin1 >> field;
 			sin2 >> field;
-			if (i == sort) {
-				key = field;
-				data->ind_names[ind] = key;
-			}
+			if (i == sort) indID = field;
 		}
+
+		if(KEEP_IND){
+			if(keepIND->count(indID) == 0) continue;
+		}
+
+		data->ind_names[actualInd] = indID;
 
 		int i = 0;
 		for (int locus = 0; locus < ncols; locus++) {
+
 			sin1 >> allele1;
 			sin2 >> allele2;
-			if (AF0->at(locus) >= MAF && AF0->at(locus) <= 1 - MAF) {
+
+			if(KEEP_POS || KEEP_SNP){
+				if(!keep_locus[locus]) continue;
+			}
+
+			//if (AF0->at(locus) >= MAF && AF0->at(locus) <= 1 - MAF) {
 				if (allele2code[i].count(allele1) == 0) {
 					lastAlleleCode[i]++;
 					allele2code[i][allele1] = lastAlleleCode[i];
@@ -604,84 +660,150 @@ structure_data *readData_stru(string infile, int sort, int &nrows, int &ncols, d
 
 				genotypeCode = allele2code[i][allele1] + allele2code[i][allele2];
 				if (genotypeCode < 0) {
-					data->data[ind][i] = allele2code[i][STRU_MISSING];
+					data->data[actualInd][i] = allele2code[i][STRU_MISSING];
 				}
 				else {
-					data->data[ind][i] = genotypeCode;
+					data->data[actualInd][i] = genotypeCode;
 				}
 				i++;
-			}
+			//}
 		}
+		actualInd++;
 	}
 	fin.close();
-	ncols = nkeep;
-	delete AF0;
+	ncols = totalLoci;
+	nrows = 2*actualInd;
+
+	data->nloci = totalLoci;
+	data->nind = actualInd;
+	if(KEEP_SNP || KEEP_POS) delete [] keep_locus;
 	return data;
 }
 
-structure_data *readData_stru2(string infile, int sort, int &nrows, int &ncols, double MAF, string STRU_MISSING) {
+structure_data *readData_stru2(string infile, int sort, int &nrows, int &ncols, double MAF, string STRU_MISSING,
+	map<string, bool> *keepIND, map<string, bool> *keepSNP, map<string, bool> *keepPOS, bool KEEP_IND, bool KEEP_SNP, bool KEEP_POS) {
 	string line;
 	int ndcols = -1;
 	int ndrows = -1;
 	nrows = -1;
 	ncols = -1;
 	int nkeep = 0;
-	double MAF_HOM = biallelic_ehom(MAF);
+	//double MAF_HOM = biallelic_ehom(MAF);
 	vector<double>* EHOM = multiallelic_maf_stru(infile, sort, nrows, ncols, ndrows, ndcols, nkeep, MAF, STRU_MISSING);
+
+	int expectednindFilter;
+
+	if(KEEP_IND) expectednindFilter = keepIND->size();
+	else expectednindFilter = nrows/2;	
 
 	igzstream fin;
 	fin.open(infile.c_str());
 
+	bool *keep_locus;
+	if(KEEP_SNP || KEEP_POS) keep_locus = new bool[ncols];
+
+	string locus_name;
+	int totalLoci = 0;
+	//Get locus names
+	if(KEEP_SNP){
+		for (int locus = 0; locus < ncols; locus++){
+			fin >> locus_name;
+			if(keepSNP->count(locus_name) > 0){
+				keep_locus[locus] = true;
+				totalLoci++;
+			}
+			else{
+				keep_locus[locus] = false;
+			}
+		}
+	}
+	else{
+		getline(fin, line);
+	}
+	//Get locus positions
+	if(KEEP_POS){
+		for (int locus = 0; locus < ncols; locus++){
+			fin >> locus_name;
+			if(keepPOS->count(locus_name) > 0){
+				keep_locus[locus] = true;
+				totalLoci++;
+			}
+			else{
+				keep_locus[locus] = false;
+			}
+		}
+	}
+	else{
+		getline(fin, line);
+	}
+	//toss out other non-data rows
+	for (int i = 2; i < ndrows; i++) getline(fin, line);
+
+	if(totalLoci == 0) totalLoci = ncols;
+
+
 	structure_data *data = new structure_data;
 	int nind = nrows / 2;
-	data->nind = nind;
-	data->data = new short*[nrows];
-	for (int i = 0; i < nrows; i++) {
-		data->data[i] = new short[nkeep];
+	data->nindAllocated = expectednindFilter;
+	data->data = new short*[2*expectednindFilter];
+	for (int i = 0; i < 2*expectednindFilter; i++) {
+		data->data[i] = new short[totalLoci];
 	}
-	data->ind_names = new string[nind];
+	data->ind_names = new string[expectednindFilter];
 
-	//toss out non-data rows
-	for (int i = 0; i < ndrows; i++) getline(fin, line);
 
-	data->nloci = nkeep;
-	string field, key, allele;
-	map<string, short> *allele2code = new map<string, short>[nkeep];
-	short *lastAlleleCode = new short[nkeep];
-	for (int i = 0; i < nkeep; i++) {
+	string field, indID, allele;
+	map<string, short> *allele2code = new map<string, short>[totalLoci];
+	short *lastAlleleCode = new short[totalLoci];
+	for (int i = 0; i < totalLoci; i++) {
 		allele2code[i][STRU_MISSING] = -9;
 		lastAlleleCode[i] = -1;
 	}
-	int index;
+	int index, actualRow = 0;
 	for (int row = 0; row < nrows; row++) {
 
 		for (int i = 1; i <= ndcols; i++) {
 			fin >> field;
-			if (i == sort) key = field;
-			if (row % 2 == 0) {
-				data->ind_names[row / 2] = key;
+			if (i == sort) indID = field;
+		}
+
+		if(KEEP_IND){
+			if(keepIND->count(indID) == 0){
+				getline(fin,field);
+				continue;
 			}
 		}
+
+		if (actualRow % 2 == 0) data->ind_names[actualRow / 2] = indID;
 
 		index = 0;
 		for (int locus = 0; locus < ncols; locus++) {
 			fin >> allele;
-			if (EHOM->at(locus) <= MAF_HOM) {
-				if (allele2code[index].count(allele) == 0) {
-					lastAlleleCode[index]++;
-					allele2code[index][allele] = lastAlleleCode[index];
-					data->data[row][index] = lastAlleleCode[index];
-				}
-				else {
-					data->data[row][index] = allele2code[index][allele];
-				}
-				index++;
+
+			if(KEEP_POS || KEEP_SNP){
+				if(!keep_locus[locus]) continue;
 			}
+
+			if (allele2code[index].count(allele) == 0) {
+				lastAlleleCode[index]++;
+				allele2code[index][allele] = lastAlleleCode[index];
+				data->data[actualRow][index] = lastAlleleCode[index];
+			}
+			else {
+				data->data[actualRow][index] = allele2code[index][allele];
+			}
+			index++;
 		}
+		actualRow++;
 	}
 	fin.close();
-	ncols = nkeep;
-	delete EHOM;
+	ncols = totalLoci;
+	nrows = actualRow;
+
+	data->nloci = totalLoci;
+	data->nind = actualRow/2;
+	if(KEEP_SNP || KEEP_POS) delete [] keep_locus;
+
 	return data;
 }
 
@@ -701,7 +823,7 @@ vector<double>* multiallelic_maf_stru(string infile, int sort, int &nrows, int &
 
 	int totalRows = 0;
 	int currentCols = 0;
-	stringstream ss;
+	//stringstream ss;
 	map<string, int> *allele2count;
 	string allele;
 	while (getline(fin, line)) {
@@ -721,8 +843,8 @@ vector<double>* multiallelic_maf_stru(string infile, int sort, int &nrows, int &
 			ndcols = currentCols - ncols;
 			ndrows = totalRows;
 
-			if (!check_int_gt_0(ndrows)) {
-				LOG.err("ERROR: Non-data rows must be > 0. Found", ndrows);
+			if (ndrows < 2) {
+				LOG.err("ERROR: Non-data rows must be >= 2. Found", ndrows);
 				throw 0;
 			}
 			LOG.log("Non-data header rows:", ndrows);
@@ -739,20 +861,6 @@ vector<double>* multiallelic_maf_stru(string infile, int sort, int &nrows, int &
 				throw 0;
 			}
 		}
-		if (ndrows > 0 || (ndrows < 0 && currentCols != ncols) ) {
-			ss.str(line);
-			for (int i = 0; i < ndcols; i++) ss >> line;
-			for (int i = 0; i < ncols; i++) {
-				ss >> allele;
-				if (allele2count[i].count(allele) == 0) {
-					allele2count[i][allele] = 1;
-				}
-				else {
-					allele2count[i][allele]++;
-				}
-			}
-			ss.clear();
-		}
 		totalRows++;
 	}
 	nrows = totalRows - ndrows;
@@ -762,186 +870,55 @@ vector<double>* multiallelic_maf_stru(string infile, int sort, int &nrows, int &
 		throw 0;
 	}
 
-	vector<double> *EHOM = new vector<double>;
-	double MAF_HOM = biallelic_ehom(MAF);
-	for (int i = 0; i < ncols; i++) {
-		int n = 0;
-		double ehom = 0;
-		for (std::map<string, int>::iterator it = allele2count[i].begin(); it != allele2count[i].end(); ++it) {
-			if ((it->first).compare(STRU_MISSING) != 0) {
-				n += it->second;
-			}
-		}
-		for (std::map<string, int>::iterator it = allele2count[i].begin(); it != allele2count[i].end(); ++it) {
-			if ((it->first).compare(STRU_MISSING) != 0) {
-				ehom += (double(it->second) / double(n)) * (double(it->second) / double(n));
-			}
-		}
-		if (ehom <= MAF_HOM) nkeep++;
-		EHOM->push_back(ehom);
-	}
-
 	fin.close();
 
-	LOG.log("Loci filtered:", ncols - nkeep);
-
-	return EHOM;
+	nkeep = nrows;
+	return NULL;
 }
 
 
-/*
-structure_data *readData_stru(string infile, int sort, int ndcols, int ndrows, int nrows, int ncols, string STRU_MISSING) {
-	igzstream fin;
 
-	fin.open(infile.c_str());
-
-	if (fin.fail())
-	{
-		cerr << "Could not open " << infile << " for reading.\n";
-		throw - 1;
-	}
-
-	structure_data *data = new structure_data;
-	string line;
-	int nind = nrows / 2;
-	data->nind = nind;
-	data->data = new short*[nrows];
-	for (int i = 0; i < nrows; i++) {
-		data->data[i] = new short[ncols];
-	}
-	data->ind_names = new string[nind];
-
-	//toss out non-data rows
-	for (int i = 0; i < ndrows; i++) getline(fin, line);
-
-	data->nloci = ncols;
-	string field, key, allele;
-	//map<string, int> ind2index;
-	map<string, short> *allele2code = new map<string, short>[ncols];
-	short *lastAlleleCode = new short[ncols];
-	for (int i = 0; i < ncols; i++) {
-		allele2code[i][STRU_MISSING] = -9;
-		lastAlleleCode[i] = -1;
-	}
-	int index;
-	int indCount = -1;
-	for (int row = 0; row < nrows; row++) {
-		for (int i = 1; i <= ndcols; i++) {
-			fin >> field;
-			if (i == sort) key = field;
-			if (row % 2 == 0) {
-				data->ind_names[row / 2] = key;
-			}
-		}
-
-		for (int locus = 0; locus < ncols; locus++) {
-			fin >> allele;
-			if (allele2code[locus].count(allele) == 0) {
-				lastAlleleCode[locus]++;
-				allele2code[locus][allele] = lastAlleleCode[locus];
-				data->data[row][locus] = lastAlleleCode[locus];
-			}
-			else {
-				data->data[row][locus] = allele2code[locus][allele];
-			}
-		}
-	}
-	fin.close();
-	return data;
-}
-*/
-/*
-void readData_ind_asd(igzstream &fin, structure_data &data,
-                      int sort, int ndcols, int ndrows,
-                      int nrows, int ncols, int STRU_MISSING)
-{
-	string line;
-	int nind = nrows / 2;
-	data.nind = nind;
-	data.data = new short*[nind];
-	data.ind_names = new string[nind];
-
-	for (int i = 0; i < nind; i++)
-	{
-		data.ind_names[i] = EMPTY_STRING;
-	}
-	int size;
-
-	for (int i = 0; i < ndrows; i++)
-	{
-		getline(fin, line);
-		//this would load loci names, but we don't actualy use them, so why bother.
-		//if(i==0) data.locus_names = split_str_str(size,line.c_str(),DEL);
-	}
-
-	size = ncols;
-	data.nloci = size;
-
-	string key;
-	string field;
-	short int *tmp;
-	//int **block;
-	//double *block;
-	short tmp_dbl;
-	int index;
-	for (int row = 0; row < nrows; row++)
-	{
-		tmp = NULL;
-		//block = NULL;
-		for (int i = 1; i <= ndcols; i++)
-		{
-			fin >> field;
-			if (i == sort) key = field;
-		}
-
-		index = search(data.ind_names, nind, key);
-
-		//getline(fin,line);
-		//cerr << line << endl;
-		tmp = split_int(fin, ncols);
-
-		if (index >= 0)
-		{
-			for (int i = 0; i < size; i++)
-			{
-				tmp_dbl = data.data[index][i];
-				//(*data.data)[key][1][i] = tmp[i];
-				if (tmp_dbl != STRU_MISSING && tmp[i] != STRU_MISSING)
-				{
-					data.data[index][i] += tmp[i];
-				}
-				else
-				{
-					data.data[index][i] = -9;
-				}
-			}
-		}
-		else
-		{
-			index = put(data.ind_names, nind, key);
-			data.data[index] = new short[size];
-
-			for (int i = 0; i < size; i++)
-			{
-				if (tmp[i] != STRU_MISSING) data.data[index][i] = tmp[i];
-				else data.data[index][i] = -9;
-			}
-			//data.data[index] = block;
-		}
-		delete [] tmp;
-	}
-
-	return;
-}
-*/
-
-vector<double>* multiallelic_maf_tped(string tped_filename, string tfam_filename, int &nrow, int &nloci, int &nkeep, double MAF, string TPED_MISSING) {
+structure_data *readData_tped_tfam2(string tped_filename, string tfam_filename, int &nrow, int &nloci, double MAF, string TPED_MISSING,
+	map<string, bool> *keepIND, map<string, bool> *keepSNP, map<string, bool> *keepPOS, bool KEEP_IND, bool KEEP_SNP, bool KEEP_POS) {
 	string junk;
 	nrow = 0;
 	nloci = 0;
 	igzstream famin, pedin;
-	nkeep = 0;
-	double MAF_HOM = biallelic_ehom(MAF);
+	
+	famin.open(tfam_filename.c_str());
+	if (famin.fail())
+	{
+		LOG.err("ERROR: Coult not open", tfam_filename);
+		throw - 1;
+	}
+
+	vector<string> names;
+	vector<bool> keep_ind;
+	nrow = 0;
+	int actualInd = 0;
+	while(getline(famin, junk)){
+		stringstream ss;
+		ss.str(junk);
+		ss >> junk;
+		ss >> junk;
+		names.push_back(junk);
+		nrow+=2;
+		if(KEEP_IND){
+			if(keepIND->count(junk) > 0){
+				keep_ind.push_back(true);
+				actualInd++;
+			}
+			else{
+				keep_ind.push_back(false);
+			}
+		}
+	}
+
+	if(actualInd == 0) actualInd = nrow/2;
+
+	structure_data *data = new structure_data;
+	data->nind = actualInd;
+	data->data = new short*[2*actualInd];
 
 	pedin.open(tped_filename.c_str());
 	if (pedin.fail())
@@ -950,95 +927,41 @@ vector<double>* multiallelic_maf_tped(string tped_filename, string tfam_filename
 		throw - 1;
 	}
 
-	famin.open(tfam_filename.c_str());
-	if (famin.fail())
-	{
-		LOG.err("ERROR: Coult not open", tfam_filename);
-		throw - 1;
-	}
-
-	while (getline(famin, junk)) nrow += 2;
-	famin.close();
-
-	vector<double> *EHOM = new vector<double>;
-	map<string, int> allele2count;
-	stringstream ss;
-	string allele;
-	int n = 0;
-	double ehom = 0;
-
-	while (getline(pedin, junk)) {
-		ss.str(junk);
-		ss >> junk;
-		ss >> junk;
-		ss >> junk;
-		ss >> junk;
-		n = 0;
-		allele2count.clear();
-		for (int i = 0; i < nrow; i++) {
-			ss >> allele;
-			if (allele.compare(TPED_MISSING) == 0) {
-				continue;
+	int actualLoci = 0;
+	string snpid, pos;
+	vector<bool> keep_locus;
+	while(getline(pedin,junk)){
+		if(KEEP_SNP || KEEP_POS){
+			stringstream ss;
+			ss.str(junk);
+			ss >> junk >> snpid >> junk >> pos;
+			if(KEEP_SNP){
+				if(keepSNP->count(snpid) > 0){
+					actualLoci++;
+					keep_locus.push_back(true);
+				}
+				else keep_locus.push_back(false);
 			}
-
-			if (allele2count.count(allele) == 0) {
-				allele2count[allele] = 1;
+			else if (KEEP_POS){
+				if(keepPOS->count(pos) > 0){
+					actualLoci++;
+					keep_locus.push_back(true);
+				}
+				else keep_locus.push_back(false);
 			}
-			else {
-				allele2count[allele]++;
-			}
-
-			n++;
 		}
-
-		ss.clear();
-		ehom = 0;
-		for (std::map<string, int>::iterator it = allele2count.begin(); it != allele2count.end(); ++it) {
-			ehom += (double(it->second) / double(n)) * (double(it->second) / double(n));
-		}
-
-		EHOM->push_back(ehom);
-		if (EHOM->at(nloci) <= MAF_HOM) nkeep++;
-
 		nloci++;
 	}
 	pedin.close();
+	pedin.clear();
 
-	LOG.log("Loci filtered:", nloci - nkeep);
+	if(actualLoci == 0) actualLoci = nloci;
 
-	return EHOM;
-}
-
-structure_data *readData_tped_tfam2(string tped_filename, string tfam_filename, int &nrow, int &nloci, double MAF, string TPED_MISSING) {
-	string junk;
-	nrow = 0;
-	nloci = 0;
-	igzstream famin, pedin;
-	int nkeep = 0;
-	double MAF_HOM = biallelic_ehom(MAF);
-
-	vector<double>* EHOM = multiallelic_maf_tped(tped_filename, tfam_filename, nrow, nloci, nkeep, MAF, TPED_MISSING);
+	data->nloci = actualLoci;
+	for (int i = 0; i < 2*actualInd; i++) data->data[i] = new short[actualLoci];
+	data->ind_names = new string[actualInd];
 
 	pedin.open(tped_filename.c_str());
-	famin.open(tfam_filename.c_str());
-
-	structure_data *data = new structure_data;
-	int nind = nrow / 2;
-	data->nind = nind;
-	data->data = new short*[2 * nind];
-	for (int i = 0; i < nrow; i++) {
-		data->data[i] = new short[nkeep];
-	}
-	data->ind_names = new string[nind];
-
-	for (int i = 0; i < nind; i++) {
-		famin >> junk;
-		famin >> data->ind_names[i];
-		getline(famin, junk);
-	}
-	famin.close();
-
-	data->nloci = nkeep;
 
 	map<string, short> allele2code;
 	short lastAlleleCode = -1;
@@ -1047,53 +970,59 @@ structure_data *readData_tped_tfam2(string tped_filename, string tfam_filename, 
 	int index = 0;
 	for (int locus = 0; locus < nloci; locus++) {
 		getline(pedin, junk);
-		if (EHOM->at(locus) <= MAF_HOM) {
-			stringstream ss;
-			ss.str(junk);
-			allele2code.clear();
-			allele2code[TPED_MISSING] = -9;
-			lastAlleleCode = -1;
 
-			ss >> allele;
-			ss >> allele;
-			ss >> allele;
-			ss >> allele;
-
-			for (int i = 0; i < 2 * nind; i++) {
-				ss >> allele;
-				if (allele2code.count(allele) == 0) {
-					lastAlleleCode++;
-					allele2code[allele] = lastAlleleCode;
-					data->data[i][index] = lastAlleleCode;
-				}
-				else {
-					data->data[i][index] = allele2code[allele];
-				}
-			}
-			index++;
+		if(KEEP_POS || KEEP_SNP){
+			if(!keep_locus[locus]) continue;
 		}
+
+		stringstream ss;
+		ss.str(junk);
+		allele2code.clear();
+		allele2code[TPED_MISSING] = -9;
+		lastAlleleCode = -1;
+
+		ss >> allele;
+		ss >> allele;
+		ss >> allele;
+		ss >> allele;
+
+		int currI = 0;
+		for (int i = 0; i < nrow; i++) {
+			ss >> allele;
+			if(KEEP_IND){
+				if(!keep_ind[i/2]) continue;
+			}
+
+			data->ind_names[currI/2] = names[i/2];
+
+			if (allele2code.count(allele) == 0) {
+				lastAlleleCode++;
+				allele2code[allele] = lastAlleleCode;
+				data->data[currI][index] = lastAlleleCode;
+			}
+			else {
+				data->data[currI][index] = allele2code[allele];
+			}
+			currI++;
+		}
+		index++;
 	}
 
+	nloci = actualLoci;
+	nrow = 2*actualInd;
 	pedin.close();
-	nloci = nkeep;
-	delete EHOM;
 	return data;
 }
 
-vector<double>* biallelic_maf_tped(string tped_filename, string tfam_filename, int &nrow, int &nloci, int &nkeep, double MAF, string TPED_MISSING) {
+structure_data *readData_tped_tfam(string tped_filename, string tfam_filename, int &nrow, int &nloci, double MAF, string TPED_MISSING,
+	map<string, bool> *keepIND, map<string, bool> *keepSNP, map<string, bool> *keepPOS, bool KEEP_IND, bool KEEP_SNP, bool KEEP_POS) {
 	string junk;
 	nrow = 0;
 	nloci = 0;
 	igzstream famin, pedin;
-	nkeep = 0;
-
-	pedin.open(tped_filename.c_str());
-	if (pedin.fail())
-	{
-		LOG.err("ERROR: Coult not open", tped_filename);
-		throw - 1;
-	}
-
+	//int nkeep = 0;
+	//vector<double> *AF0 = biallelic_maf_tped(tped_filename, tfam_filename, nrow, nloci, nkeep, MAF, TPED_MISSING);
+	
 	famin.open(tfam_filename.c_str());
 	if (famin.fail())
 	{
@@ -1101,82 +1030,75 @@ vector<double>* biallelic_maf_tped(string tped_filename, string tfam_filename, i
 		throw - 1;
 	}
 
-	while (getline(famin, junk)) nrow += 2;
-	famin.close();
-
-	vector<double> *AF0 = new vector<double>;
-	map<string, int> allele2count;
-	stringstream ss;
-	string allele;
-	int n = 0;
-
-	while (getline(pedin, junk)) {
+	vector<string> names;
+	vector<bool> keep_ind;
+	nrow = 0;
+	int actualInd = 0;
+	while(getline(famin, junk)){
+		stringstream ss;
 		ss.str(junk);
 		ss >> junk;
 		ss >> junk;
-		ss >> junk;
-		ss >> junk;
-		n = 0;
-		allele2count.clear();
-		for (int i = 0; i < nrow; i++) {
-			ss >> allele;
-			if (allele.compare(TPED_MISSING) == 0) {
-				continue;
+		names.push_back(junk);
+		nrow+=2;
+		if(KEEP_IND){
+			if(keepIND->count(junk) > 0){
+				keep_ind.push_back(true);
+				actualInd++;
 			}
-
-			if (allele2count.count(allele) == 0) {
-				allele2count[allele] = 1;
+			else{
+				keep_ind.push_back(false);
 			}
-			else {
-				allele2count[allele]++;
-			}
-
-			n++;
 		}
-		ss.clear();
-		map<string, int>::iterator it = allele2count.begin();
+	}
 
-		AF0->push_back(double(it->second) / double(n));
+	if(actualInd == 0) actualInd = nrow/2;
 
-		if (AF0->at(nloci) >= MAF && AF0->at(nloci) <= 1 - MAF) nkeep++;
+	structure_data *data = new structure_data;
+	data->nind = actualInd;
+	data->data = new short*[actualInd];
 
+	pedin.open(tped_filename.c_str());
+	if (pedin.fail()){
+		LOG.err("ERROR: Coult not open", tped_filename);
+		throw - 1;
+	}
+
+	int actualLoci = 0;
+	string snpid, pos;
+	vector<bool> keep_locus;
+	while(getline(pedin,junk)){
+		if(KEEP_SNP || KEEP_POS){
+			stringstream ss;
+			ss.str(junk);
+			ss >> junk >> snpid >> junk >> pos;
+			if(KEEP_SNP){
+				if(keepSNP->count(snpid) > 0){
+					actualLoci++;
+					keep_locus.push_back(true);
+				}
+				else keep_locus.push_back(false);
+			}
+			else if (KEEP_POS){
+				if(keepPOS->count(pos) > 0){
+					actualLoci++;
+					keep_locus.push_back(true);
+				}
+				else keep_locus.push_back(false);
+			}
+		}
 		nloci++;
 	}
 	pedin.close();
+	pedin.clear();
 
-	LOG.log("Loci filtered:", nloci - nkeep);
+	if(actualLoci == 0) actualLoci = nloci;
 
-	return AF0;
-}
-
-structure_data *readData_tped_tfam(string tped_filename, string tfam_filename, int &nrow, int &nloci, double MAF, string TPED_MISSING) {
-	string junk;
-	nrow = 0;
-	nloci = 0;
-	igzstream famin, pedin;
-	int nkeep = 0;
-	vector<double> *AF0 = biallelic_maf_tped(tped_filename, tfam_filename, nrow, nloci, nkeep, MAF, TPED_MISSING);
+	data->nloci = actualLoci;
+	for (int i = 0; i < actualInd; i++) data->data[i] = new short[actualLoci];
+	data->ind_names = new string[actualInd];
 
 	pedin.open(tped_filename.c_str());
-	famin.open(tfam_filename.c_str());
-
-	structure_data *data = new structure_data;
-
-	int nind = nrow / 2;
-
-	data->nind = nind;
-	data->data = new short*[nind];
-	for (int i = 0; i < nind; i++) data->data[i] = new short[nkeep];
-	data->ind_names = new string[nind];
-
-	for (int i = 0; i < nind; i++)
-	{
-		famin >> junk;
-		famin >> data->ind_names[i];
-		getline(famin, junk);
-	}
-
-	data->nloci = nkeep;
 
 	map<string, short> allele2code;
 	short lastAlleleCode = -1;
@@ -1184,60 +1106,70 @@ structure_data *readData_tped_tfam(string tped_filename, string tfam_filename, i
 	string allele1, allele2;
 	short genotypeCode;
 	int index = 0;
-	for (int locus = 0; locus < nloci; locus++)
-	{
+	for (int locus = 0; locus < nloci; locus++){
 		getline(pedin, junk);
-		if (AF0->at(locus) >= MAF && AF0->at(locus) <= 1 - MAF) {
-			stringstream ss;
-			ss.str(junk);
-			allele2code.clear();
-			allele2code[TPED_MISSING] = -9;
-			lastAlleleCode = -1;
-
-			ss >> allele1;
-			ss >> allele1;
-			ss >> allele1;
-			ss >> allele1;
-
-			for (int ind = 0; ind < nind; ind++)
-			{
-				//alleleCount = 0;
-				ss >> allele1;
-				ss >> allele2;
-
-				if (allele2code.count(allele1) == 0) {
-					lastAlleleCode++;
-					if (lastAlleleCode > 1) {
-						LOG.err("ERORR: --biallelic flag set, but found more than 2 alleles at locus", locus + 1);
-						throw - 1;
-					}
-					allele2code[allele1] = lastAlleleCode;
-				}
-
-				if (allele2code.count(allele2) == 0) {
-					lastAlleleCode++;
-					if (lastAlleleCode > 1) {
-						LOG.err("ERORR: --biallelic flag set, but found more than 2 alleles at locus", locus + 1);
-						throw - 1;
-					}
-					allele2code[allele2] = lastAlleleCode;
-				}
-
-				genotypeCode = allele2code[allele1] + allele2code[allele2];
-				if (genotypeCode < 0) {
-					data->data[ind][index] = allele2code[TPED_MISSING];
-				}
-				else {
-					data->data[ind][index] = genotypeCode;
-				}
-			}
-			index++;
+			
+		if(KEEP_POS || KEEP_SNP){
+			if(!keep_locus[locus]) continue;
 		}
+
+		stringstream ss;
+		ss.str(junk);
+		allele2code.clear();
+		allele2code[TPED_MISSING] = -9;
+		lastAlleleCode = -1;
+
+		ss >> allele1;
+		ss >> allele1;
+		ss >> allele1;
+		ss >> allele1;
+
+		int currInd = 0;
+		for (int ind = 0; ind < nrow/2; ind++){
+			ss >> allele1;
+			ss >> allele2;
+
+			if(KEEP_IND){
+				if(!keep_ind[ind]) continue;
+			}
+
+			data->ind_names[currInd] = names[ind];
+
+			if (allele2code.count(allele1) == 0) {
+				lastAlleleCode++;
+				if (lastAlleleCode > 1) {
+					LOG.err("ERORR: --biallelic flag set, but found more than 2 alleles at locus", locus + 1);
+					throw - 1;
+				}
+				allele2code[allele1] = lastAlleleCode;
+			}
+
+			if (allele2code.count(allele2) == 0) {
+				lastAlleleCode++;
+				if (lastAlleleCode > 1) {
+					LOG.err("ERORR: --biallelic flag set, but found more than 2 alleles at locus", locus + 1);
+					throw - 1;
+				}
+				allele2code[allele2] = lastAlleleCode;
+			}
+
+			genotypeCode = allele2code[allele1] + allele2code[allele2];
+			if (genotypeCode < 0) {
+				data->data[currInd][index] = allele2code[TPED_MISSING];
+			}
+			else {
+				data->data[currInd][index] = genotypeCode;
+			}
+
+			currInd++;
+		}
+		index++;
 	}
 
-	nloci = nkeep;
+	nloci = actualLoci;
+	nrow = 2*actualInd;
 	pedin.close();
-	delete AF0;
+	//delete AF0;
 	return data;
 }
 
@@ -1410,207 +1342,258 @@ double biallelic_ehom(double MAF) {
 	return MAF * MAF + (1 - MAF) * (1 - MAF);
 }
 
-structure_data *readData_vcf(string vcf_filename, int &nrow, int &nloci, double MAF) {
+structure_data *readData_vcf(string vcf_filename, int &nrow, int &nloci, double MAF,
+	map<string, bool> *keepIND, map<string, bool> *keepSNP, map<string, bool> *keepPOS, bool KEEP_IND, bool KEEP_SNP, bool KEEP_POS) {
 	int numComments = 0;
-	string line;
-	int nkeep = 0;
-	vector<double> *AF0 = biallelic_maf_vcf(vcf_filename, nrow, nloci, nkeep, numComments, MAF);
-	int nind = nrow / 2;
+	string line, junk;
 
 	igzstream fin;
+
 	fin.open(vcf_filename.c_str());
+	if (fin.fail()){
+		LOG.err("ERROR: Coult not open", vcf_filename);
+		throw - 1;
+	}
 
-	structure_data *data = new structure_data;
-	data->nloci = nkeep;
-	data->nind = nind;
-	data->data = new short*[nind];
-	for (int i = 0; i < nind; i++) data->data[i] = new short[nkeep];
-	data->ind_names = new string[nind];
+	while(getline(fin, line)){
+		numComments++;
+		if(line[0] == '#' && line[1] == 'C') break;
+	}
 
-	for (int i = 0; i < numComments; i++) getline(fin, line);
 	stringstream ss;
 	ss.str(line);
 	for (int i = 0; i < 9; i++) ss >> line;
-	for (int i = 0; i < nind; i++) ss >> data->ind_names[i];
 
-	string gt, a1, a2;
-	int i = 0;
-	for (int locus = 0; locus < nloci; locus++)
-	{
-		getline(fin, line);
-		if (AF0->at(locus) >= MAF && AF0->at(locus) <= 1 - MAF) {
-			ss.clear();
-			ss.str(line);
-			for (int field = 0; field < 9; field++) ss >> gt;
-			for (int ind = 0; ind < nind; ind++) {
-				ss >> gt;
-				if (gt.compare("./.") == 0 || gt.compare(".|.") == 0 || gt.compare(".") == 0) {
-					data->data[ind][i] = -9;
-					i++;
-					continue;
-				}
-				else {
-					a1 = gt[0];
-					a2 = gt[2];
-				}
-				data->data[ind][i] = atoi(a1.c_str()) + atoi(a2.c_str());
+	int actualInd = 0;
+	vector<string> names;
+	vector<bool> keep_ind;
+	while(ss >> line){
+		names.push_back(line);
+		if(KEEP_IND){
+			if(keepIND->count(line)>0){
+				keep_ind.push_back(true);
+				actualInd++;
 			}
-			i++;
+			else keep_ind.push_back(false);
 		}
+		nrow++;
 	}
 
-	nloci = nkeep;
+	nloci = 0;
+	int actualLoci = 0;
+	vector<bool> keep_locus;
+	string pos, id;
+	while(getline(fin, line)){
+		if(KEEP_SNP || KEEP_POS){
+			//stringstream ss;
+			ss.clear();
+			ss.str(line);
+			ss >> junk >> pos >> id;
+			if(KEEP_SNP){
+				if(keepSNP->count(id) > 0){
+					actualLoci++;
+					keep_locus.push_back(true);
+				}
+				else keep_locus.push_back(false);
+			}
+			else if (KEEP_POS){
+				if(keepPOS->count(pos) > 0){
+					actualLoci++;
+					keep_locus.push_back(true);
+				}
+				else keep_locus.push_back(false);
+			}
+		}
+		nloci++;
+	}
 	fin.close();
-	delete AF0;
+	fin.clear();
+
+	fin.open(vcf_filename.c_str());
+
+	structure_data *data = new structure_data;
+	data->nloci = actualLoci;
+	data->nind = actualInd;
+	data->data = new short*[actualInd];
+	for (int i = 0; i < actualInd; i++) data->data[i] = new short[actualLoci];
+	data->ind_names = new string[actualInd];
+
+	for (int i = 0; i < numComments; i++) getline(fin, line);
+	
+	string gt, a1, a2;
+	int i = 0;
+	for (int locus = 0; locus < nloci; locus++){
+		getline(fin, line);
+
+		if(KEEP_POS || KEEP_SNP){
+			if(!keep_locus[locus]) continue;
+		}
+
+		ss.clear();
+		ss.str(line);
+		for (int field = 0; field < 9; field++) ss >> gt;
+		int currInd = 0;
+		for (int ind = 0; ind < nrow; ind++) {
+			ss >> gt;
+
+			if(KEEP_IND){
+				if(!keep_ind[ind]) continue;
+			}
+
+			data->ind_names[currInd] = names[ind];
+
+			if (gt.compare("./.") == 0 || gt.compare(".|.") == 0 || gt.compare(".") == 0) {
+				data->data[currInd][i] = -9;
+				i++;
+				continue;
+			}
+			else {
+				a1 = gt[0];
+				a2 = gt[2];
+
+				if( (a1.compare("0") != 0 && a1.compare("1") != 0) || (a2.compare("0") != 0 && a2.compare("1") != 0) ){
+					LOG.err("ERORR: --biallelic flag set, but found more than 2 alleles at locus", locus + 1);
+					throw - 1;
+				}
+			}
+			data->data[currInd][i] = atoi(a1.c_str()) + atoi(a2.c_str());
+			currInd++;
+		}
+		i++;
+	}
+
+	nloci = actualLoci;
+	nrow = 2*actualInd;
+	fin.close();
 	return data;
 }
 
-structure_data *readData_vcf2(string vcf_filename, int &nrow, int &nloci, double MAF) {
+structure_data *readData_vcf2(string vcf_filename, int &nrow, int &nloci, double MAF,
+	map<string, bool> *keepIND, map<string, bool> *keepSNP, map<string, bool> *keepPOS, bool KEEP_IND, bool KEEP_SNP, bool KEEP_POS) {
 	int numComments = 0;
-	string line;
+	string line, junk;
 	double MAF_HOM = biallelic_ehom(MAF);
-	int nkeep = 0;
-	vector<double> *EHOM = multiallelic_maf_vcf(vcf_filename, nrow, nloci, nkeep, numComments, MAF);
-	int nind = nrow / 2;
 
 	igzstream fin;
+
 	fin.open(vcf_filename.c_str());
+	if (fin.fail()){
+		LOG.err("ERROR: Coult not open", vcf_filename);
+		throw - 1;
+	}
 
-	structure_data *data = new structure_data;
-	data->nloci = nkeep;
-	data->nind = nind;
-	data->data = new short*[2 * nind];
-	for (int i = 0; i < 2 * nind; i++) data->data[i] = new short[nkeep];
-	data->ind_names = new string[nind];
+	while(getline(fin, line)){
+		numComments++;
+		if(line[0] == '#' && line[1] == 'C') break;
+	}
 
-	for (int i = 0; i < numComments; i++) getline(fin, line);
 	stringstream ss;
 	ss.str(line);
 	for (int i = 0; i < 9; i++) ss >> line;
-	for (int i = 0; i < nind; i++) ss >> data->ind_names[i];
+
+	int actualInd = 0;
+	vector<string> names;
+	vector<bool> keep_ind;
+	while(ss >> line){
+		names.push_back(line);
+		if(KEEP_IND){
+			if(keepIND->count(line)>0){
+				keep_ind.push_back(true);
+				actualInd++;
+			}
+			else keep_ind.push_back(false);
+		}
+		nrow++;
+	}
+
+	nloci = 0;
+	int actualLoci = 0;
+	vector<bool> keep_locus;
+	string pos, id;
+	while(getline(fin, line)){
+		if(KEEP_SNP || KEEP_POS){
+			//stringstream ss;
+			ss.clear();
+			ss.str(line);
+			ss >> junk >> pos >> id;
+			if(KEEP_SNP){
+				if(keepSNP->count(id) > 0){
+					actualLoci++;
+					keep_locus.push_back(true);
+				}
+				else keep_locus.push_back(false);
+			}
+			else if (KEEP_POS){
+				if(keepPOS->count(pos) > 0){
+					actualLoci++;
+					keep_locus.push_back(true);
+				}
+				else keep_locus.push_back(false);
+			}
+		}
+		nloci++;
+	}
+	fin.close();
+	fin.clear();
+
+	fin.open(vcf_filename.c_str());
+	structure_data *data = new structure_data;
+	data->nloci = actualLoci;
+	data->nind = actualInd;
+	data->data = new short*[2*actualInd];
+	for (int i = 0; i < 2*actualInd; i++) data->data[i] = new short[actualLoci];
+	data->ind_names = new string[actualInd];
+
+	for (int i = 0; i < numComments; i++) getline(fin, line);
 
 	string gt, a1, a2;
 	int i = 0;
 	for (int locus = 0; locus < nloci; locus++)
 	{
 		getline(fin, line);
-		if (EHOM->at(locus) <= MAF_HOM) {
-			ss.clear();
-			ss.str(line);
-			for (int field = 0; field < 9; field++) ss >> gt;
-			int index = 0;
-			for (int ind = 0; ind < nind; ind++) {
-				ss >> gt;
-				if (gt.compare("./.") == 0 || gt.compare(".|.") == 0 || gt.compare(".") == 0) {
-					data->data[index][i] = -9;
-					index++;
-					data->data[index][i] = -9;
-					index++;
-				}
-				else {
-					a1 = gt[0];
-					a2 = gt[2];
-					data->data[index][i] = atoi(a1.c_str());
-					index++;
-					data->data[index][i] = atoi(a2.c_str());
-					index++;
-				}
-			}
-			i++;
+
+		if(KEEP_POS || KEEP_SNP){
+			if(!keep_locus[locus]) continue;
 		}
+
+		ss.clear();
+		ss.str(line);
+		for (int field = 0; field < 9; field++) ss >> gt;
+		int index = 0;
+		int currInd = 0;
+		for (int ind = 0; ind < nrow; ind++) {
+			ss >> gt;
+
+			if(KEEP_IND){
+				if(!keep_ind[ind]) continue;
+			}
+
+			data->ind_names[currInd] = names[ind];
+
+			if (gt.compare("./.") == 0 || gt.compare(".|.") == 0 || gt.compare(".") == 0) {
+				data->data[index][i] = -9;
+				index++;
+				data->data[index][i] = -9;
+				index++;
+			}
+			else {
+				a1 = gt[0];
+				a2 = gt[2];
+				data->data[index][i] = atoi(a1.c_str());
+				index++;
+				data->data[index][i] = atoi(a2.c_str());
+				index++;
+			}
+			currInd++;
+		}
+		i++;
 	}
+
+	nloci = actualLoci;
+	nrow = 2*actualInd;
+
 	fin.close();
-	nloci = nkeep;
-	delete EHOM;
 	return data;
-}
-
-void readData_pop_freq(igzstream & fin, structure_data & data,
-                       int sort, int ndcols, int ndrows,
-                       int nrows, int ncols)
-{
-	string line;
-	int nind = nrows / 2;
-	data.nind = nind;
-	data.data = new short*[nind];
-	data.ind_names = new string[nind];
-
-	for (int i = 0; i < nind; i++)
-	{
-		data.ind_names[i] = EMPTY_STRING;
-	}
-
-	getline(fin, line);
-	int size;
-	data.locus_names = split_str_str(size, line.c_str(), DEL);
-
-	size = ncols;
-	data.nloci = size;
-
-	for (int i = 1; i < ndrows; i++)
-	{
-		getline(fin, line);
-	}
-
-	string key;
-	string field;
-	short int *tmp;
-	//int **block;
-	//double *block;
-	short tmp_dbl;
-	int index;
-	for (int row = 0; row < nrows; row++)
-	{
-		tmp = NULL;
-		//block = NULL;
-		for (int i = 1; i <= ndcols; i++)
-		{
-			fin >> field;
-			if (i == sort) key = field;
-		}
-
-		index = search(data.ind_names, nind, key);
-
-		//getline(fin,line);
-		//cerr << line << endl;
-		tmp = split_int(fin, ncols);
-
-		if (index >= 0)
-		{
-			for (int i = 0; i < size; i++)
-			{
-				tmp_dbl = data.data[index][i];
-				//(*data.data)[key][1][i] = tmp[i];
-				if (tmp_dbl >= 0 && tmp[i] >= 0)
-				{
-					data.data[index][i] += tmp[i];
-				}
-				else
-				{
-					data.data[index][i] = -9;
-				}
-			}
-		}
-		else
-		{
-			index = put(data.ind_names, nind, key);
-			data.data[index] = new short[size];
-			//block = new double[size];
-			/*
-			block = new int[2];
-			block[0] = new int[size];
-			block[1] = new int[size];
-			*/
-			for (int i = 0; i < size; i++)
-			{
-				data.data[index][i] = tmp[i];
-			}
-			//data.data[index] = block;
-		}
-		delete [] tmp;
-	}
-
-	return;
 }
 
 int countFields(const string & str)
@@ -1665,40 +1648,10 @@ int put(string * s, int size, string key)
 // The number of strings split out is returned
 short int *split_int(igzstream & fin, int fields)
 {
-	/*
-	vector<string> v;
-	while (true)
-	  {
-	    const char* begin = s;
-
-	    while (*s != c && *s) { ++s; }
-
-	    v.push_back(string(begin, s));
-
-	    if (!*s)
-	{
-	  break;
-	}
-
-	    if (!*++s)
-	{
-	  //v.push_back("");
-	  break;
-	}
-	  }
-	*/
 	short int *a = new short int[fields];
-	for (int i = 0; i < fields; i++)
-	{
+	for (int i = 0; i < fields; i++){
 		fin >> a[i];
-		//cout << a[i] << endl;
 	}
-	/*
-	for(int i = 0; i < v.size();i++)
-	  {
-	    a[i]=atoi(v[i].c_str());
-	  }
-	*/
 	return a;
 }
 

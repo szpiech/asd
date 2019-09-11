@@ -8,6 +8,7 @@
 #include <cstdlib>
 #include <sstream>
 #include <pthread.h>
+#include <map>
 #include "gzstream.h"
 #include "param_t.h"
 #include "asd-cli.h"
@@ -35,6 +36,7 @@ typedef struct
 	string *ind_names;
 	int nloci;
 	int nind;
+	int nindAllocated;
 } structure_data;
 
 typedef struct
@@ -69,21 +71,30 @@ typedef struct
 	int nloci;
 } population_data;
 */
+
+map<string,bool>* readSubsetFile(string infile); 
+
 void combine_partial_files(param_t *params);
 
-structure_data *readData_stru(string infile, int sort, int &nrows, int &ncols, double MAF, string STRU_MISSING);
-structure_data *readData_stru2(string infile, int sort, int &nrows, int &ncols, double MAF, string STRU_MISSING);
+structure_data *readData_stru(string infile, int sort, int &nrows, int &ncols, double MAF, string STRU_MISSING,
+	map<string, bool> *keepIND, map<string, bool> *keepSNP, map<string, bool> *keepPOS, bool KEEP_IND, bool KEEP_SNP, bool KEEP_POS);
+structure_data *readData_stru2(string infile, int sort, int &nrows, int &ncols, double MAF, string STRU_MISSING,
+	map<string, bool> *keepIND, map<string, bool> *keepSNP, map<string, bool> *keepPOS, bool KEEP_IND, bool KEEP_SNP, bool KEEP_POS);
 
 vector<double>* multiallelic_maf_stru(string infile, int sort, int &nrow, int &ncols, int &ndrows, int &ndcols, int &nkeep, double MAF, string STRU_MISSING);
 
-structure_data *readData_tped_tfam(string tped_filename, string tfam_filename, int &nrow, int &nloci, double MAF, string TPED_MISSING);
-structure_data *readData_tped_tfam2(string tped_filename, string tfam_filename, int &nrow, int &nloci, double MAF, string TPED_MISSING);
+structure_data *readData_tped_tfam(string tped_filename, string tfam_filename, int &nrow, int &nloci, double MAF, string TPED_MISSING,
+	map<string, bool> *keepIND, map<string, bool> *keepSNP, map<string, bool> *keepPOS, bool KEEP_IND, bool KEEP_SNP, bool KEEP_POS);
+structure_data *readData_tped_tfam2(string tped_filename, string tfam_filename, int &nrow, int &nloci, double MAF, string TPED_MISSING,
+	map<string, bool> *keepIND, map<string, bool> *keepSNP, map<string, bool> *keepPOS, bool KEEP_IND, bool KEEP_SNP, bool KEEP_POS);
 
 vector<double>* biallelic_maf_tped(string tped_filename, string tfam_filename, int &nrow, int &nloci, int &nkeep, double MAF, string TPED_MISSING);
 vector<double>* multiallelic_maf_tped(string tped_filename, string tfam_filename, int &nrow, int &nloci, int &nkeep, double MAF, string TPED_MISSING);
 
-structure_data *readData_vcf(string vcf_filename, int &nrow, int &nloci, double MAF);
-structure_data *readData_vcf2(string vcf_filename, int &nrow, int &nloci, double MAF);
+structure_data *readData_vcf(string vcf_filename, int &nrow, int &nloci, double MAF,
+	map<string, bool> *keepIND, map<string, bool> *keepSNP, map<string, bool> *keepPOS, bool KEEP_IND, bool KEEP_SNP, bool KEEP_POS);
+structure_data *readData_vcf2(string vcf_filename, int &nrow, int &nloci, double MAF,
+	map<string, bool> *keepIND, map<string, bool> *keepSNP, map<string, bool> *keepPOS, bool KEEP_IND, bool KEEP_SNP, bool KEEP_POS);
 
 vector<double>* biallelic_maf_vcf(string vcf_filename, int &nrow, int &nloci, int &nkeep, int &numComments, double MAF);
 vector<double>* multiallelic_maf_vcf(string vcf_filename, int &nrow, int &nloci, int &nkeep, int &numComments, double MAF);

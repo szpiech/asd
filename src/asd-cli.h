@@ -34,10 +34,11 @@ extern const string ARG_VCF_FILENAME;
 extern const string DEFAULT_VCF_FILENAME;
 extern const string HELP_VCF_FILENAME;
 
+/*
 extern const string ARG_MAF;
 extern const double DEFAULT_MAF;
 extern const string HELP_MAF;
-
+*/
 extern const string ARG_SORT;
 extern const int DEFAULT_SORT;
 extern const string HELP_SORT;
@@ -62,9 +63,9 @@ extern const string ARG_TPED_MISSING;
 extern const string DEFAULT_TPED_MISSING;
 extern const string HELP_TPED_MISSING;
 
-extern const string ARG_BIALLELIC;
-extern const bool DEFAULT_BIALLELIC;
-extern const string HELP_BIALLELIC;
+extern const string ARG_MULTIALLELIC;
+extern const bool DEFAULT_MULTIALLELIC;
+extern const string HELP_MULTIALLELIC;
 
 extern const string ARG_COMBINE;
 extern const string DEFAULT_COMBINE;
@@ -81,6 +82,18 @@ extern const string HELP_IBS_LONG;
 extern const string ARG_GRM;
 extern const bool DEFAULT_GRM;
 extern const string HELP_GRM;
+
+extern const string ARG_KEEP_SITES_ID;
+extern const string DEFAULT_KEEP_SITES_ID;
+extern const string HELP_KEEP_SITES_ID;
+
+extern const string ARG_KEEP_SITES_POS;
+extern const string DEFAULT_KEEP_SITES_POS;
+extern const string HELP_KEEP_SITES_POS;
+
+extern const string ARG_KEEP_IND;
+extern const string DEFAULT_KEEP_IND;
+extern const string HELP_KEEP_IND;
 
 
 param_t *getCLI(int argc, char *argv[]);

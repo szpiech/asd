@@ -79,20 +79,24 @@ int main(int argc, char *argv[])
     if (TFAM) LOG.log("Input tfam file:", tfam_filename);
     if (VCF) LOG.log("Input vcf file:", vcf_filename);
     bool GRM = params->getBoolFlag(ARG_GRM);
-    bool BIALLELIC = params->getBoolFlag(ARG_BIALLELIC);
-    if(GRM && !BIALLELIC){
-        LOG.log("WARNING: --grm forces --biallelic.");
-        BIALLELIC = true;
+    bool MULTIALLELIC = params->getBoolFlag(ARG_MULTIALLELIC);
+    bool BIALLELIC = !MULTIALLELIC;
+    if(GRM && MULTIALLELIC){
+        LOG.err("ERROR: --grm not compatible with --multiallelic.");
+        return -1;
     }
     LOG.log("Calculate GRM:", GRM);
-    LOG.log("Biallelic flag set (increases efficiency):", BIALLELIC);
+    LOG.log("Multiallelic flag set:", MULTIALLELIC);
 
+/*
     double MAF = params->getDoubleFlag(ARG_MAF);
     if(!check_maf(MAF)){
         LOG.err("ERROR: MAF must be >= 0 and <= 1.");
         return -1;
     }
     LOG.log("MAF filter:", MAF);
+*/
+    double MAF = 0;
 
     int sort = params->getIntFlag(ARG_SORT);
     if (STRU) LOG.log("Individual ID column:", sort);
@@ -139,6 +143,35 @@ int main(int argc, char *argv[])
         return -1;
     }
 
+    bool KEEP_IND;
+    map<string,bool> *keepIND = NULL;
+    string keepINDFile = params->getStringFlag(ARG_KEEP_IND);
+    KEEP_IND = ( keepINDFile.compare(DEFAULT_KEEP_IND) != 0 );
+    if(KEEP_IND){
+        keepIND = readSubsetFile(keepINDFile);
+        LOG.log("Keep only individuals:", keepINDFile);
+    }
+
+    bool KEEP_SNP, KEEP_POS;
+    map<string,bool> *keepSNP = NULL;
+    map<string,bool> *keepPOS = NULL;
+    string keepSNPFile = params->getStringFlag(ARG_KEEP_SITES_ID);
+    KEEP_SNP = ( keepSNPFile.compare(DEFAULT_KEEP_SITES_ID) != 0 );
+    string keepPOSFile = params->getStringFlag(ARG_KEEP_SITES_POS);
+    KEEP_POS = ( keepPOSFile.compare(DEFAULT_KEEP_SITES_POS) != 0 );
+    if(KEEP_POS && KEEP_SNP){
+        LOG.err("ERROR: Please choose only one of --keep-site-id or --keep-site-pos");
+        return -1;
+    }
+    else if(KEEP_POS){
+        keepPOS = readSubsetFile(keepPOSFile);
+        LOG.log("Keep only sites:", keepPOSFile);
+    }
+    else if(KEEP_SNP){
+        keepSNP = readSubsetFile(keepSNPFile);
+        LOG.log("Keep only sites:", keepSNPFile);
+    }
+
     int nrows = 0;
     int ncols = 0;
 
@@ -146,10 +179,12 @@ int main(int argc, char *argv[])
     if (STRU) {
         try {
             if (BIALLELIC) {
-                data = readData_stru(filename, sort, nrows, ncols, MAF, STRU_MISSING);
+                data = readData_stru(filename, sort, nrows, ncols, MAF, STRU_MISSING,
+                                     keepIND, keepSNP, keepPOS, KEEP_IND, KEEP_SNP, KEEP_POS);
             }
             else {
-                data = readData_stru2(filename, sort, nrows, ncols, MAF, STRU_MISSING);
+                data = readData_stru2(filename, sort, nrows, ncols, MAF, STRU_MISSING,
+                                      keepIND, keepSNP, keepPOS, KEEP_IND, KEEP_SNP, KEEP_POS);
             }
         }
         catch (...) {
@@ -159,10 +194,12 @@ int main(int argc, char *argv[])
     else if (TPED) {
         try {
             if (BIALLELIC) {
-                data = readData_tped_tfam(tped_filename, tfam_filename, nrows, ncols, MAF, TPED_MISSING);
+                data = readData_tped_tfam(tped_filename, tfam_filename, nrows, ncols, MAF, TPED_MISSING,
+                                          keepIND, keepSNP, keepPOS, KEEP_IND, KEEP_SNP, KEEP_POS);
             }
             else {
-                data = readData_tped_tfam2(tped_filename, tfam_filename, nrows, ncols, MAF, TPED_MISSING);
+                data = readData_tped_tfam2(tped_filename, tfam_filename, nrows, ncols, MAF, TPED_MISSING,
+                                           keepIND, keepSNP, keepPOS, KEEP_IND, KEEP_SNP, KEEP_POS);
             }
         }
         catch (...) {
@@ -172,10 +209,12 @@ int main(int argc, char *argv[])
     else if (VCF) {
         try {
             if (BIALLELIC) {
-                data = readData_vcf(vcf_filename, nrows, ncols, MAF);
+                data = readData_vcf(vcf_filename, nrows, ncols, MAF,
+                                    keepIND, keepSNP, keepPOS, KEEP_IND, KEEP_SNP, KEEP_POS);
             }
             else {
-                data = readData_vcf2(vcf_filename, nrows, ncols, MAF);
+                data = readData_vcf2(vcf_filename, nrows, ncols, MAF,
+                                     keepIND, keepSNP, keepPOS, KEEP_IND, KEEP_SNP, KEEP_POS);
             }
         }
         catch (...) {
