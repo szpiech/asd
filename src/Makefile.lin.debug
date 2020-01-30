@@ -1,13 +1,13 @@
 # Makefile for asd
 
-#G++FLAG = -g
+G++FLAG = -g
 
 #osx
 #G++FLAG = -fast
 #LINK_OPTS2 = -pthread -lz
 
 #linux
-G++FLAG = -O3
+#G++FLAG = -O3
 LINK_OPTS2 = -pthread -lz
 
 #for windows, using MinGW build environment
