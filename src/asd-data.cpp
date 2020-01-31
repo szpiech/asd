@@ -2140,6 +2140,7 @@ structure_data *readData_vcf(string vcf_filename, int &nrow, int &nloci) {
 
 	//nloci = actualLoci;
 	//nrow = 2*actualInd;
+	nrow *= 2;
 	fin.close();
 	return data;
 }
@@ -2225,6 +2226,7 @@ structure_data *readData_vcf2(string vcf_filename, int &nrow, int &nloci) {
 	}
 
 	fin.close();
+	nrow *=2;
 	return data;
 }
 
