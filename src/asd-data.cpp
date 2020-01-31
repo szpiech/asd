@@ -538,6 +538,7 @@ vector<double>* biallelic_maf_stru(string infile, int sort, int &nrows, int &nco
 	return NULL;
 }
 
+/*
 structure_data *readData_stru(string infile, int sort, int &nrows, int &ncols, double MAF, string STRU_MISSING,
 	map<string, bool> *keepIND, map<string, bool> *keepSNP, map<string, bool> *keepPOS, bool KEEP_IND, bool KEEP_SNP, bool KEEP_POS) {
 	int ndcols = -1;
@@ -806,6 +807,271 @@ structure_data *readData_stru2(string infile, int sort, int &nrows, int &ncols, 
 
 	return data;
 }
+*/
+
+structure_data *readData_stru(string infile, int sort, int &nrows, int &ncols, string STRU_MISSING) {
+	int ndcols = -1;
+	int ndrows = -1;
+	nrows = -1;
+	ncols = -1;
+
+	string line;
+	igzstream fin;
+
+	fin.open(infile.c_str());
+
+	if (fin.fail()) {
+		LOG.err("ERROR: Could not open", infile);
+		throw - 1;
+	}
+
+	int totalRows = 0;
+	//int nloci = 0;
+	int currentCols = 0;
+	while (getline(fin, line)) {
+		totalRows++;
+		currentCols = countFields(line);
+		if (totalRows == 1) ncols = currentCols;
+
+		if (ndrows < 0 && currentCols != ncols) {
+			ndcols = currentCols - ncols;
+			ndrows = totalRows - 1;
+		}
+	}
+	nrows = totalRows - ndrows;
+
+	bool err = false;
+	if (!check_int_gt_0(nrows)) {
+		err = true;
+		LOG.err("ERROR: Number of chr must be > 0. Found", nrows);
+	}
+
+	if (!check_int_gt_0(ndrows)) {
+		err = true;
+		LOG.err("ERROR: Non-data rows must be > 0. Found", ndrows);
+	}
+	LOG.log("Non-data header rows:", ndrows);
+
+	if (!check_int_gt_0(ncols)) {
+		err = true;
+		LOG.err("ERROR: Number of loci must be > 0. Found", ncols);
+	}
+
+	if (!check_int_gt_0(ndcols)) {
+		err = true;
+		LOG.err("ERROR: Non-data columns must be > 0. Found", ndcols);
+	}
+	LOG.log("Non-data header columns:", ndcols);
+
+	if (!check_sort(sort, ndcols)) {
+		err = true;
+		LOG.err("ERROR: Individual ID column must be in [ 1,", ndcols, false);
+		LOG.err(" ].");
+	}
+
+	if (err) {
+		throw 0;
+	}
+
+	fin.close();
+	fin.clear();
+
+	fin.open(infile.c_str());
+
+
+	structure_data *data = new structure_data;
+	int nind = nrows / 2;
+	data->nind = nind;
+	data->data = new short*[nind];
+	for (int i = 0; i < nind; i++) {
+		data->data[i] = new short[ncols];
+	}
+	data->ind_names = new string[nind];
+
+	//toss out non-data rows
+	for (int i = 0; i < ndrows; i++) getline(fin, line);
+
+	data->nloci = ncols;
+
+	map<string, short> *allele2code = new map<string, short>[ncols];
+	short *lastAlleleCode = new short[ncols];
+	for (int i = 0; i < ncols; i++) {
+		allele2code[i][STRU_MISSING] = -9;
+		lastAlleleCode[i] = -1;
+	}
+
+	int index;
+	int indCount = -1;
+	string field, key, allele1, allele2, line1, line2;
+	stringstream sin1, sin2;
+	short genotypeCode;
+	for (int ind = 0; ind < nind; ind++) {
+		getline(fin, line1);
+		sin1 << line1;
+		getline(fin, line2);
+		sin2 << line2;
+
+		for (int i = 1; i <= ndcols; i++) {
+			sin1 >> field;
+			sin2 >> field;
+			if (i == sort) {
+				key = field;
+				data->ind_names[ind] = key;
+			}
+		}
+
+		for (int locus = 0; locus < ncols; locus++) {
+			sin1 >> allele1;
+			sin2 >> allele2;
+
+			if (allele2code[locus].count(allele1) == 0) {
+				lastAlleleCode[locus]++;
+				if (lastAlleleCode[locus] > 1) {
+					LOG.err("ERORR: --biallelic flag set, but found more than 2 alleles at locus", locus + 1);
+					throw - 1;
+				}
+				allele2code[locus][allele1] = lastAlleleCode[locus];
+			}
+
+			if (allele2code[locus].count(allele2) == 0) {
+				lastAlleleCode[locus]++;
+				if (lastAlleleCode[locus] > 1) {
+					LOG.err("ERORR: --biallelic flag set, but found more than 2 alleles at locus", locus + 1);
+					throw - 1;
+				}
+				allele2code[locus][allele2] = lastAlleleCode[locus];
+			}
+
+			genotypeCode = allele2code[locus][allele1] + allele2code[locus][allele2];
+			if (genotypeCode < 0) {
+				data->data[ind][locus] = allele2code[locus][STRU_MISSING];
+			}
+			else {
+				data->data[ind][locus] = genotypeCode;
+			}
+		}
+	}
+	fin.close();
+	return data;
+}
+
+structure_data *readData_stru2(string infile, int sort, int &nrows, int &ncols, string STRU_MISSING) {
+	int ndcols = -1;
+	int ndrows = -1;
+	nrows = -1;
+	ncols = -1;
+
+	string line;
+	igzstream fin;
+
+	fin.open(infile.c_str());
+
+	if (fin.fail()) {
+		LOG.err("ERROR: Could not open", infile);
+		throw - 1;
+	}
+
+	int totalRows = 0;
+	//int nloci = 0;
+	int currentCols = 0;
+	while (getline(fin, line)) {
+		totalRows++;
+		currentCols = countFields(line);
+		if (totalRows == 1) ncols = currentCols;
+
+		if (ndrows < 0 && currentCols != ncols) {
+			ndcols = currentCols - ncols;
+			ndrows = totalRows - 1;
+		}
+	}
+	nrows = totalRows - ndrows;
+
+	bool err = false;
+	if (!check_int_gt_0(nrows)) {
+		err = true;
+		LOG.err("ERROR: Number of chr must be > 0. Found", nrows);
+	}
+
+	if (!check_int_gt_0(ndrows)) {
+		err = true;
+		LOG.err("ERROR: Non-data rows must be > 0. Found", ndrows);
+	}
+	LOG.log("Non-data header rows:", ndrows);
+
+	if (!check_int_gt_0(ncols)) {
+		err = true;
+		LOG.err("ERROR: Number of loci must be > 0. Found", ncols);
+	}
+
+	if (!check_int_gt_0(ndcols)) {
+		err = true;
+		LOG.err("ERROR: Non-data columns must be > 0. Found", ndcols);
+	}
+	LOG.log("Non-data header columns:", ndcols);
+
+	if (!check_sort(sort, ndcols)) {
+		err = true;
+		LOG.err("ERROR: Individual ID column must be in [ 1, ", ndcols, false);
+		LOG.err("].");
+	}
+
+	if (err) {
+		throw 0;
+	}
+
+	fin.close();
+	fin.clear();
+
+	fin.open(infile.c_str());
+
+
+	structure_data *data = new structure_data;
+	int nind = nrows / 2;
+	data->nind = nind;
+	data->data = new short*[nrows];
+	for (int i = 0; i < nrows; i++) {
+		data->data[i] = new short[ncols];
+	}
+	data->ind_names = new string[nind];
+
+	//toss out non-data rows
+	for (int i = 0; i < ndrows; i++) getline(fin, line);
+
+	data->nloci = ncols;
+	string field, key, allele;
+	map<string, short> *allele2code = new map<string, short>[ncols];
+	short *lastAlleleCode = new short[ncols];
+	for (int i = 0; i < ncols; i++) {
+		allele2code[i][STRU_MISSING] = -9;
+		lastAlleleCode[i] = -1;
+	}
+	int index;
+	int indCount = -1;
+	for (int row = 0; row < nrows; row++) {
+		for (int i = 1; i <= ndcols; i++) {
+			fin >> field;
+			if (i == sort) key = field;
+			if (row % 2 == 0) {
+				data->ind_names[row / 2] = key;
+			}
+		}
+
+		for (int locus = 0; locus < ncols; locus++) {
+			fin >> allele;
+			if (allele2code[locus].count(allele) == 0) {
+				lastAlleleCode[locus]++;
+				allele2code[locus][allele] = lastAlleleCode[locus];
+				data->data[row][locus] = lastAlleleCode[locus];
+			}
+			else {
+				data->data[row][locus] = allele2code[locus][allele];
+			}
+		}
+	}
+	fin.close();
+	return data;
+}
+
 
 vector<double>* multiallelic_maf_stru(string infile, int sort, int &nrows, int &ncols, int &ndrows, int &ndcols, int &nkeep, double MAF, string STRU_MISSING) {
 	string line;
@@ -877,7 +1143,7 @@ vector<double>* multiallelic_maf_stru(string infile, int sort, int &nrows, int &
 }
 
 
-
+/*
 structure_data *readData_tped_tfam2(string tped_filename, string tfam_filename, int &nrow, int &nloci, double MAF, string TPED_MISSING,
 	map<string, bool> *keepIND, map<string, bool> *keepSNP, map<string, bool> *keepPOS, bool KEEP_IND, bool KEEP_SNP, bool KEEP_POS) {
 	string junk;
@@ -1172,6 +1438,197 @@ structure_data *readData_tped_tfam(string tped_filename, string tfam_filename, i
 	//delete AF0;
 	return data;
 }
+*/
+
+structure_data *readData_tped_tfam2(string tped_filename, string tfam_filename, int &nrow, int &nloci, string TPED_MISSING) {
+	string junk;
+	nrow = 0;
+	nloci = 0;
+	igzstream famin, pedin;
+
+	pedin.open(tped_filename.c_str());
+	if (pedin.fail())
+	{
+		LOG.err("ERROR: Coult not open", tped_filename);
+		throw - 1;
+	}
+
+	famin.open(tfam_filename.c_str());
+	if (famin.fail())
+	{
+		LOG.err("ERROR: Coult not open", tfam_filename);
+		throw - 1;
+	}
+
+	while (getline(famin, junk)) nrow += 2;
+	famin.close();
+	famin.clear();
+
+	while (getline(pedin, junk)) nloci++;
+	pedin.close();
+	pedin.clear();
+
+	pedin.open(tped_filename.c_str());
+	famin.open(tfam_filename.c_str());
+
+	structure_data *data = new structure_data;
+	int nind = nrow / 2;
+	data->nind = nind;
+	data->data = new short*[2 * nind];
+	for (int i = 0; i < nrow; i++) {
+		data->data[i] = new short[nloci];
+	}
+	data->ind_names = new string[nind];
+
+	for (int i = 0; i < nind; i++)
+	{
+		famin >> junk;
+		famin >> data->ind_names[i];
+		getline(famin, junk);
+	}
+	famin.close();
+
+	data->nloci = nloci;
+
+	map<string, short> allele2code;
+	short lastAlleleCode = -1;
+
+	string allele;
+	for (int locus = 0; locus < nloci; locus++)
+	{
+		allele2code.clear();
+		allele2code[TPED_MISSING] = -9;
+		lastAlleleCode = -1;
+
+		pedin >> junk;
+		pedin >> junk;
+		pedin >> junk;
+		pedin >> junk;
+
+		for (int i = 0; i < 2 * nind; i++)
+		{
+			pedin >> allele;
+			if (allele2code.count(allele) == 0) {
+				lastAlleleCode++;
+				allele2code[allele] = lastAlleleCode;
+				data->data[i][locus] = lastAlleleCode;
+			}
+			else {
+				data->data[i][locus] = allele2code[allele];
+			}
+		}
+	}
+
+	pedin.close();
+	return data;
+}
+
+
+structure_data *readData_tped_tfam(string tped_filename, string tfam_filename, int &nrow, int &nloci, string TPED_MISSING)
+{
+	string junk;
+	nrow = 0;
+	nloci = 0;
+	igzstream famin, pedin;
+
+	pedin.open(tped_filename.c_str());
+	if (pedin.fail())
+	{
+		LOG.err("ERROR: Coult not open", tped_filename);
+		throw - 1;
+	}
+
+	famin.open(tfam_filename.c_str());
+	if (famin.fail())
+	{
+		LOG.err("ERROR: Coult not open", tfam_filename);
+		throw - 1;
+	}
+
+	while (getline(famin, junk)) nrow += 2;
+	famin.close();
+	famin.clear();
+
+	while (getline(pedin, junk)) nloci++;
+	pedin.close();
+	pedin.clear();
+
+	pedin.open(tped_filename.c_str());
+	famin.open(tfam_filename.c_str());
+
+	structure_data *data = new structure_data;
+
+	int nind = nrow / 2;
+
+	//cerr << "Reading " << nind << " diploid individuals at " << nloci << " loci.\n";
+
+	data->nind = nind;
+	data->data = new short*[nind];
+	for (int i = 0; i < nind; i++) data->data[i] = new short[nloci];
+	data->ind_names = new string[nind];
+
+	for (int i = 0; i < nind; i++)
+	{
+		famin >> junk;
+		famin >> data->ind_names[i];
+		getline(famin, junk);
+	}
+
+	data->nloci = nloci;
+
+	map<string, short> allele2code;
+	short lastAlleleCode = -1;
+
+	string allele1, allele2;
+	short genotypeCode;
+	for (int locus = 0; locus < nloci; locus++)
+	{
+		allele2code.clear();
+		allele2code[TPED_MISSING] = -9;
+		lastAlleleCode = -1;
+
+		pedin >> junk;
+		pedin >> junk;
+		pedin >> junk;
+		pedin >> junk;
+
+		for (int ind = 0; ind < nind; ind++)
+		{
+			//alleleCount = 0;
+			pedin >> allele1;
+			pedin >> allele2;
+
+			if (allele2code.count(allele1) == 0) {
+				lastAlleleCode++;
+				if (lastAlleleCode > 1) {
+					LOG.err("ERORR: --biallelic flag set, but found more than 2 alleles at locus", locus + 1);
+					throw - 1;
+				}
+				allele2code[allele1] = lastAlleleCode;
+			}
+
+			if (allele2code.count(allele2) == 0) {
+				lastAlleleCode++;
+				if (lastAlleleCode > 1) {
+					LOG.err("ERORR: --biallelic flag set, but found more than 2 alleles at locus", locus + 1);
+					throw - 1;
+				}
+				allele2code[allele2] = lastAlleleCode;
+			}
+
+			genotypeCode = allele2code[allele1] + allele2code[allele2];
+			if (genotypeCode < 0) {
+				data->data[ind][locus] = allele2code[TPED_MISSING];
+			}
+			else {
+				data->data[ind][locus] = genotypeCode;
+			}
+		}
+	}
+
+	return data;
+}
+
 
 vector<double>* biallelic_maf_vcf(string vcf_filename, int &nrow, int &nloci, int &nkeep, int &numComments, double MAF) {
 	string line;
@@ -1342,6 +1799,7 @@ double biallelic_ehom(double MAF) {
 	return MAF * MAF + (1 - MAF) * (1 - MAF);
 }
 
+/*
 structure_data *readData_vcf(string vcf_filename, int &nrow, int &nloci, double MAF,
 	map<string, bool> *keepIND, map<string, bool> *keepSNP, map<string, bool> *keepPOS, bool KEEP_IND, bool KEEP_SNP, bool KEEP_POS) {
 	int numComments = 0;
@@ -1591,6 +2049,180 @@ structure_data *readData_vcf2(string vcf_filename, int &nrow, int &nloci, double
 
 	nloci = actualLoci;
 	nrow = 2*actualInd;
+
+	fin.close();
+	return data;
+}
+*/
+
+structure_data *readData_vcf(string vcf_filename, int &nrow, int &nloci) {
+	int numComments = 0;
+	string line, junk;
+
+	igzstream fin;
+
+	fin.open(vcf_filename.c_str());
+	if (fin.fail()){
+		LOG.err("ERROR: Coult not open", vcf_filename);
+		throw - 1;
+	}
+
+	while(getline(fin, line)){
+		numComments++;
+		if(line[0] == '#' && line[1] == 'C') break;
+	}
+
+	stringstream ss;
+	ss.str(line);
+	for (int i = 0; i < 9; i++) ss >> line;
+
+	//int actualInd = 0;
+	vector<string> names;
+	//vector<bool> keep_ind;
+	while(ss >> line){
+		names.push_back(line);
+		nrow++;
+	}
+
+	nloci = 0;
+	//int actualLoci = 0;
+	vector<bool> keep_locus;
+	string pos, id;
+	while(getline(fin, line)){
+		nloci++;
+	}
+	fin.close();
+	fin.clear();
+
+	fin.open(vcf_filename.c_str());
+
+	structure_data *data = new structure_data;
+	data->nloci = nloci;
+	data->nind = nrow;
+	data->data = new short*[nrow];
+	for (int i = 0; i < nrow; i++) data->data[i] = new short[nloci];
+	data->ind_names = new string[nrow];
+
+	for (int i = 0; i < numComments; i++) getline(fin, line);
+	
+	string gt, a1, a2;
+	int i = 0;
+	for (int locus = 0; locus < nloci; locus++){
+		getline(fin, line);
+
+		ss.clear();
+		ss.str(line);
+		for (int field = 0; field < 9; field++) ss >> gt;
+		int currInd = 0;
+		for (int ind = 0; ind < nrow; ind++) {
+			ss >> gt;
+			data->ind_names[currInd] = names[ind];
+
+			if (gt.compare("./.") == 0 || gt.compare(".|.") == 0 || gt.compare(".") == 0) {
+				data->data[currInd][i] = -9;
+				i++;
+				continue;
+			}
+			else {
+				a1 = gt[0];
+				a2 = gt[2];
+
+				if( (a1.compare("0") != 0 && a1.compare("1") != 0) || (a2.compare("0") != 0 && a2.compare("1") != 0) ){
+					LOG.err("ERORR: --biallelic flag set, but found more than 2 alleles at locus", locus + 1);
+					throw - 1;
+				}
+			}
+			data->data[currInd][i] = atoi(a1.c_str()) + atoi(a2.c_str());
+			currInd++;
+		}
+		i++;
+	}
+
+	//nloci = actualLoci;
+	//nrow = 2*actualInd;
+	fin.close();
+	return data;
+}
+
+structure_data *readData_vcf2(string vcf_filename, int &nrow, int &nloci) {
+	int numComments = 0;
+	string line, junk;
+
+	igzstream fin;
+
+	fin.open(vcf_filename.c_str());
+	if (fin.fail()){
+		LOG.err("ERROR: Coult not open", vcf_filename);
+		throw - 1;
+	}
+
+	while(getline(fin, line)){
+		numComments++;
+		if(line[0] == '#' && line[1] == 'C') break;
+	}
+
+	stringstream ss;
+	ss.str(line);
+	for (int i = 0; i < 9; i++) ss >> line;
+
+	vector<string> names;
+	while(ss >> line){
+		names.push_back(line);
+		nrow++;
+	}
+
+	nloci = 0;
+	string pos, id;
+	while(getline(fin, line)){
+		nloci++;
+	}
+	fin.close();
+	fin.clear();
+
+	fin.open(vcf_filename.c_str());
+	structure_data *data = new structure_data;
+	data->nloci = nloci;
+	data->nind = nrow;
+	data->data = new short*[2*nrow];
+	for (int i = 0; i < 2*nrow; i++) data->data[i] = new short[nloci];
+	data->ind_names = new string[nrow];
+
+	for (int i = 0; i < numComments; i++) getline(fin, line);
+
+	string gt, a1, a2;
+	int i = 0;
+	for (int locus = 0; locus < nloci; locus++)
+	{
+		getline(fin, line);
+
+		ss.clear();
+		ss.str(line);
+		for (int field = 0; field < 9; field++) ss >> gt;
+		int index = 0;
+		int currInd = 0;
+		for (int ind = 0; ind < nrow; ind++) {
+			ss >> gt;
+
+			data->ind_names[currInd] = names[ind];
+
+			if (gt.compare("./.") == 0 || gt.compare(".|.") == 0 || gt.compare(".") == 0) {
+				data->data[index][i] = -9;
+				index++;
+				data->data[index][i] = -9;
+				index++;
+			}
+			else {
+				a1 = gt[0];
+				a2 = gt[2];
+				data->data[index][i] = atoi(a1.c_str());
+				index++;
+				data->data[index][i] = atoi(a2.c_str());
+				index++;
+			}
+			currInd++;
+		}
+		i++;
+	}
 
 	fin.close();
 	return data;

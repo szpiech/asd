@@ -92,6 +92,7 @@ const string ARG_GRM = "--grm";
 const bool DEFAULT_GRM = false;
 const string HELP_GRM = "Calculate the genomic relationship matrix.";
 
+/*
 const string ARG_KEEP_SITES_ID = "--keep-sites-id";
 const string DEFAULT_KEEP_SITES_ID = "__none";
 const string HELP_KEEP_SITES_ID = "A file containing a list of site IDs,\
@@ -106,7 +107,7 @@ const string ARG_KEEP_IND = "--keep-ind";
 const string DEFAULT_KEEP_IND = "__none";
 const string HELP_KEEP_IND = "A file containing a list of individual IDs,\
 \n\tone per line, to keep for computations.";
-
+*/
 
 string getCommandLineString(int argc, char *argv[])
 {
@@ -138,10 +139,11 @@ param_t *getCLI(int argc, char *argv[])
 	params->addFlag(ARG_LONG_FORMAT, DEFAULT_LONG_FORMAT, "", HELP_LONG_FORMAT);
 	params->addFlag(ARG_IBS_LONG, DEFAULT_IBS_LONG, "", HELP_IBS_LONG);
 	params->addFlag(ARG_GRM, DEFAULT_GRM, "", HELP_GRM);
+	/*
 	params->addFlag(ARG_KEEP_SITES_ID, DEFAULT_KEEP_SITES_ID, "", HELP_KEEP_SITES_ID);
 	params->addFlag(ARG_KEEP_SITES_POS, DEFAULT_KEEP_SITES_POS, "", HELP_KEEP_SITES_POS);
 	params->addFlag(ARG_KEEP_IND, DEFAULT_KEEP_IND, "", HELP_KEEP_IND);
-
+	*/
 	params->setPreamble("asd v" + VERSION);
 
 	if (!params->parseCommandLine(argc, argv))

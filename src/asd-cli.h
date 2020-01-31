@@ -83,6 +83,7 @@ extern const string ARG_GRM;
 extern const bool DEFAULT_GRM;
 extern const string HELP_GRM;
 
+/*
 extern const string ARG_KEEP_SITES_ID;
 extern const string DEFAULT_KEEP_SITES_ID;
 extern const string HELP_KEEP_SITES_ID;
@@ -94,7 +95,7 @@ extern const string HELP_KEEP_SITES_POS;
 extern const string ARG_KEEP_IND;
 extern const string DEFAULT_KEEP_IND;
 extern const string HELP_KEEP_IND;
-
+*/
 
 param_t *getCLI(int argc, char *argv[]);
 string getCommandLineString(int argc, char *argv[]);

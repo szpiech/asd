@@ -143,6 +143,7 @@ int main(int argc, char *argv[])
         return -1;
     }
 
+/*
     bool KEEP_IND;
     map<string,bool> *keepIND = NULL;
     string keepINDFile = params->getStringFlag(ARG_KEEP_IND);
@@ -151,7 +152,8 @@ int main(int argc, char *argv[])
         keepIND = readSubsetFile(keepINDFile);
         LOG.log("Keep only individuals:", keepINDFile);
     }
-
+*/
+/*
     bool KEEP_SNP, KEEP_POS;
     map<string,bool> *keepSNP = NULL;
     map<string,bool> *keepPOS = NULL;
@@ -171,7 +173,7 @@ int main(int argc, char *argv[])
         keepSNP = readSubsetFile(keepSNPFile);
         LOG.log("Keep only sites:", keepSNPFile);
     }
-
+*/
     int nrows = 0;
     int ncols = 0;
 
@@ -179,12 +181,18 @@ int main(int argc, char *argv[])
     if (STRU) {
         try {
             if (BIALLELIC) {
+                /*
                 data = readData_stru(filename, sort, nrows, ncols, MAF, STRU_MISSING,
                                      keepIND, keepSNP, keepPOS, KEEP_IND, KEEP_SNP, KEEP_POS);
+                */
+                data = readData_stru(filename, sort, nrows, ncols, STRU_MISSING);
             }
             else {
+                /*
                 data = readData_stru2(filename, sort, nrows, ncols, MAF, STRU_MISSING,
                                       keepIND, keepSNP, keepPOS, KEEP_IND, KEEP_SNP, KEEP_POS);
+                */
+                data = readData_stru2(filename, sort, nrows, ncols, STRU_MISSING);
             }
         }
         catch (...) {
@@ -194,12 +202,18 @@ int main(int argc, char *argv[])
     else if (TPED) {
         try {
             if (BIALLELIC) {
+                /*
                 data = readData_tped_tfam(tped_filename, tfam_filename, nrows, ncols, MAF, TPED_MISSING,
                                           keepIND, keepSNP, keepPOS, KEEP_IND, KEEP_SNP, KEEP_POS);
+                */
+                data = readData_tped_tfam(tped_filename, tfam_filename, nrows, ncols, TPED_MISSING);
             }
             else {
+                /*
                 data = readData_tped_tfam2(tped_filename, tfam_filename, nrows, ncols, MAF, TPED_MISSING,
                                            keepIND, keepSNP, keepPOS, KEEP_IND, KEEP_SNP, KEEP_POS);
+                */
+                data = readData_tped_tfam2(tped_filename, tfam_filename, nrows, ncols, TPED_MISSING);
             }
         }
         catch (...) {
@@ -209,12 +223,18 @@ int main(int argc, char *argv[])
     else if (VCF) {
         try {
             if (BIALLELIC) {
+                /*
                 data = readData_vcf(vcf_filename, nrows, ncols, MAF,
                                     keepIND, keepSNP, keepPOS, KEEP_IND, KEEP_SNP, KEEP_POS);
+                */
+                data = readData_vcf(vcf_filename, nrows, ncols);
             }
             else {
+                /*
                 data = readData_vcf2(vcf_filename, nrows, ncols, MAF,
                                      keepIND, keepSNP, keepPOS, KEEP_IND, KEEP_SNP, KEEP_POS);
+                */
+                data = readData_vcf2(vcf_filename, nrows, ncols);
             }
         }
         catch (...) {
