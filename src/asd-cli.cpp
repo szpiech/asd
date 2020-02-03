@@ -94,7 +94,7 @@ const string HELP_GRM = "Calculate the genomic relationship matrix.";
 
 extern const string ARG_WEIGHTED_ASD = "--weighted";
 extern const bool DEFAULT_WEIGHTED_ASD = false;
-extern const string HELP_WEIGHTED_ASD = "Calculate weighted allele sharing similarity scores from Greenbaum et al. 2020.";
+extern const string HELP_WEIGHTED_ASD = "Calculate weighted allele sharing similarity scores from Greenbaum et al. 2019.";
 
 
 /*
