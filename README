@@ -1,4 +1,4 @@
-asd is a multi-threaded program to quickly compute pairwise allele sharing distances between diploid individuals with an arbitrary number of alleles per locus.  asd reads TPED/TFAM and STRU formatted files and will load gzipped files without first requiring decompression. If your data are strictly biallelic, you may use the --biallelic feature for better efficiency.
+asd is a multi-threaded program to quickly compute pairwise allele sharing distances, GRMs, or frequency weighted allele similarities between diploid individuals with an arbitrary number of alleles per locus (GRMs biallelic only).  asd reads TPED/TFAM, STRU, and VCF formatted files and will load gzipped files without first requiring decompression. If your data are not biallelic, you must use the --multiallelic flag. This flag is not compatible with --grm and is automatically set when using --weighted.
 
 usage
 
@@ -49,7 +49,7 @@ asd v1.1.0
 --missing-stru <string>: For stru files, set the missing data value.
 	Default: -9
 
---missing-tped <string>: For stru files, set the missing data value.
+--missing-tped <string>: For tped files, set the missing data value.
 	Default: 0
 
 --multiallelic <bool>: Set if there are more than two alleles at at least one locus.	
