@@ -8,16 +8,21 @@ or
 
 ./asd --tped <filename>.tped --tfam <filename>.tfam
 
-optional flags --partial, --log, --ibs-all, --out, --missing-stru, --missing-tped, --biallelic, --combine, --long, --long-ibs
+or
 
-asd v1.0.0
+./asd --vcf <filename>.vcf
+
+optional flags --partial, --log, --ibs-all, --out, --missing-stru, --missing-tped, --biallelic, --combine, --long, --long-ibs, --grm, --weighted
+
+asd v1.1.0
 ----------Command Line Arguments----------
 
---biallelic <bool>: Set for more efficient computations when all loci are biallelic.
-	Default: false
-
---combine <string1> ... <stringN>: Combine several files generated with --partial.
+--combine <string1> ... <stringN>: Combine several files	
+	generated with --partial.
 	Default: __none
+
+--grm <bool>: Calculate the genomic relationship matrix.
+	Default: false
 
 --help <bool>: Prints this help dialog.
 	Default: false
@@ -31,14 +36,14 @@ asd v1.0.0
 --log <bool>: Transforms allele sharing distance by -ln(ps) instead of 1-(ps).
 	Default: false
 
---long <bool>: Instead of printing a matrix, print allele sharing distances one
-per row. Formatted <ID1> <ID2> <allele sharing distance>.
-Not compatible with --partial.
+--long <bool>: Instead of printing a matrix, print allele sharing distances one	
+	per row. Formatted <ID1> <ID2> <allele sharing distance>.	
+	Not compatible with --partial.
 	Default: false
 
---long-ibs <bool>: Instead of printing a matrix, print IBS calculations one
-per row. Formatted <ID1> <ID2> <IBS0/1/2>.
-Not compatible with --partial.
+--long-ibs <bool>: Instead of printing a matrix, print IBS calculations one	
+	per row. Formatted <ID1> <ID2> <IBS0/1/2>.	
+	Not compatible with --partial.
 	Default: false
 
 --missing-stru <string>: For stru files, set the missing data value.
@@ -47,27 +52,42 @@ Not compatible with --partial.
 --missing-tped <string>: For stru files, set the missing data value.
 	Default: 0
 
+--multiallelic <bool>: Set if there are more than two alleles at at least one locus.	
+	Computations are less efficient with this flag set.
+	Default: false
+
 --out <string>: Basename for output files.
 	Default: outfile
 
---partial <bool>: If set, outputs two nind x nind matrices. The first is the number of loci used
-for each pairwise comparison, and the second is the untransformed dist/IBS
-matrix. Useful for splitting up very large jobs. Can combine with --combine.
+--partial <bool>: If set, outputs two nind x nind matrices.    
+	The first is the number of loci used for each pairwise    
+	comparison, and the second is the untransformed dist/IBS	
+	matrix. Useful for splitting up very large jobs.	
+	Can combine with --combine.
 	Default: false
 
---stru <string>: The input data filename (stru format). Change missing data code with
---missing-stru.
+--stru <string>: The input data filename (stru format).	
+	Change missing data code with --missing-stru.	
+	Requires two header rows: locus names, and locus positions.
 	Default: __none
 
---tfam <string>: The input data filename (tfam format), also requires a .tped file (--tped).
+--tfam <string>: The input data filename (tfam format).	
+	Requires a .tped file (--tped).
 	Default: __none
 
 --threads <int>: Number of threads to spawn for faster calculation.
 	Default: 1
 
---tped <string>: The input data filename (tped format). Requires a .tfam file (--tfam).
-Change missing data code with --missing-tped.
+--tped <string>: The input data filename (tped format).	
+	Requires a .tfam file (--tfam).	
+	Change missing data code with --missing-tped.
 	Default: __none
+
+--vcf <string>: The input data filename (vcf format).
+	Default: __none
+
+--weighted <bool>: Calculate weighted allele sharing similarity scores from Greenbaum et al. 2019.
+	Default: false
 
 
 NOTE: Multi-dimensional scaling plots can be created easily in R with the following commands (assuming --partial was not used):
