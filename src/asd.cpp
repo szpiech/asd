@@ -79,13 +79,28 @@ int main(int argc, char *argv[])
     if (TFAM) LOG.log("Input tfam file:", tfam_filename);
     if (VCF) LOG.log("Input vcf file:", vcf_filename);
     bool GRM = params->getBoolFlag(ARG_GRM);
+    bool WEIGHTED_ASD = params->getBoolFlag(ARG_WEIGHTED_ASD);
+    if(GRM && WEIGHTED_ASD){
+        LOG.err("ERROR: Must choose only one --grm/--weighted.");
+        return -1;
+    }
+    bool ASD;
+    if(!GRM && !WEIGHTED_ASD){
+        ASD = true;
+    }
+
     bool MULTIALLELIC = params->getBoolFlag(ARG_MULTIALLELIC);
+    if(WEIGHTED_ASD){
+        MULTIALLELIC = true;
+    }
+
     bool BIALLELIC = !MULTIALLELIC;
     if(GRM && MULTIALLELIC){
         LOG.err("ERROR: --grm not compatible with --multiallelic.");
         return -1;
     }
     LOG.log("Calculate GRM:", GRM);
+    LOG.log("Calculated weighted ASD:", WEIGHTED_ASD);
     LOG.log("Multiallelic flag set:", MULTIALLELIC);
 
 /*
@@ -114,6 +129,10 @@ int main(int argc, char *argv[])
         LOG.err("ERROR: Must choose only one of --partial, --log.");
         return -1;
     }
+    if (PRINT_LOG && (GRM || WEIGHTED_ASD)) {
+        LOG.err("ERROR: --log not compatible with --grm or --weighted.");
+        return -1;
+    }
     if (!PRINT_PARTIAL) {
         LOG.log("Print allele sharing matrix:", !PRINT_PARTIAL);
         LOG.log("Log transformed:", PRINT_LOG);
@@ -121,8 +140,8 @@ int main(int argc, char *argv[])
     else LOG.log("Print partial allele sharing matrix:", PRINT_PARTIAL);
 
     bool CALC_ALL_IBS = params->getBoolFlag(ARG_CALC_IBS);
-    if(CALC_ALL_IBS && GRM){
-        LOG.err("ERROR: --grm and --ibs incompatible.");
+    if(CALC_ALL_IBS && (GRM || WEIGHTED_ASD)){
+        LOG.err("ERROR: --grm/--weighted and --ibs incompatible.");
         return -1;
     }
     LOG.log("Output IBS matricies:", CALC_ALL_IBS);
@@ -270,7 +289,7 @@ int main(int argc, char *argv[])
         order->CALC_ALL_IBS = CALC_ALL_IBS;
         order->bar = &pbar;
         order->threads = num_threads;
-        if(!GRM){
+        if(ASD){
             if (BIALLELIC) {
                 pthread_create(&(peer[i]),
                                NULL,
@@ -284,10 +303,16 @@ int main(int argc, char *argv[])
                                (void *)order);
             }
         }
-        else{
+        else if (GRM){
             pthread_create(&(peer[i]),
                             NULL,
                             (void *(*)(void *))calc_grm,
+                            (void *)order);
+        }
+        else if (WEIGHTED_ASD){
+            pthread_create(&(peer[i]),
+                            NULL,
+                            (void *(*)(void *))calc_weighted_asd,
                             (void *)order);
         }
     }
@@ -296,9 +321,9 @@ int main(int argc, char *argv[])
 
     cerr << endl;
 
-    finalize_calculations(nind, ncols, CALC_ALL_IBS, GRM);
+    finalize_calculations(nind, ncols, CALC_ALL_IBS, GRM, ASD, WEIGHTED_ASD);
 
-    write_dist_matrix(outfile, nind, ncols, data->ind_names, PRINT_PARTIAL, PRINT_LOG, PRINT_LONG, GRM);
+    write_dist_matrix(outfile, nind, ncols, data->ind_names, PRINT_PARTIAL, PRINT_LOG, PRINT_LONG, GRM, ASD, WEIGHTED_ASD);
 
     if (CALC_ALL_IBS)
     {

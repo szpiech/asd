@@ -83,6 +83,11 @@ extern const string ARG_GRM;
 extern const bool DEFAULT_GRM;
 extern const string HELP_GRM;
 
+extern const string ARG_WEIGHTED_ASD;
+extern const bool DEFAULT_WEIGHTED_ASD;
+extern const string HELP_WEIGHTED_ASD;
+
+
 /*
 extern const string ARG_KEEP_SITES_ID;
 extern const string DEFAULT_KEEP_SITES_ID;

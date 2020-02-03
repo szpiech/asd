@@ -92,6 +92,11 @@ const string ARG_GRM = "--grm";
 const bool DEFAULT_GRM = false;
 const string HELP_GRM = "Calculate the genomic relationship matrix.";
 
+extern const string ARG_WEIGHTED_ASD = "--weighted";
+extern const bool DEFAULT_WEIGHTED_ASD = false;
+extern const string HELP_WEIGHTED_ASD = "Calculate weighted allele sharing similarity scores from Greenbaum et al. 2020.";
+
+
 /*
 const string ARG_KEEP_SITES_ID = "--keep-sites-id";
 const string DEFAULT_KEEP_SITES_ID = "__none";
@@ -139,6 +144,7 @@ param_t *getCLI(int argc, char *argv[])
 	params->addFlag(ARG_LONG_FORMAT, DEFAULT_LONG_FORMAT, "", HELP_LONG_FORMAT);
 	params->addFlag(ARG_IBS_LONG, DEFAULT_IBS_LONG, "", HELP_IBS_LONG);
 	params->addFlag(ARG_GRM, DEFAULT_GRM, "", HELP_GRM);
+	params->addFlag(ARG_WEIGHTED_ASD, DEFAULT_WEIGHTED_ASD, "", HELP_WEIGHTED_ASD);
 	/*
 	params->addFlag(ARG_KEEP_SITES_ID, DEFAULT_KEEP_SITES_ID, "", HELP_KEEP_SITES_ID);
 	params->addFlag(ARG_KEEP_SITES_POS, DEFAULT_KEEP_SITES_POS, "", HELP_KEEP_SITES_POS);

@@ -137,9 +137,9 @@ int search(string *s, int size, string key);
 int put(string *s, int size, string key);
 
 bool init_storage(int nind, bool CALC_ALL_IBS);
-bool finalize_calculations(int nind, int ncols, bool CALC_ALL_IBS, bool GRM);
+bool finalize_calculations(int nind, int ncols, bool CALC_ALL_IBS, bool GRM, bool ASD, bool WEIGHTED_ASD);
 
 void write_ibs_matrices(string outfile, int nind, int ncols, string *ind_names, bool PRINT_PARTIAL, bool PRINT_LONG_IBS);
-void write_dist_matrix(string outfile, int nind, int ncols, string *ind_names, bool PRINT_PARTIAL, bool PRINT_LOG, bool PRINT_LONG, bool GRM);
+void write_dist_matrix(string outfile, int nind, int ncols, string *ind_names, bool PRINT_PARTIAL, bool PRINT_LOG, bool PRINT_LONG, bool GRM, bool ASD, bool WEIGHTED_ASD);
 
 #endif

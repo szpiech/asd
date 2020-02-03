@@ -136,7 +136,6 @@ void calc_pw_as_dist(void *order)
 
 void calc_pw_as_dist2(void *order)
 {
-
 	work_order_t *p = (work_order_t *)order;
 	short **data = p->stru_data->data;
 	int size = (p->stru_data->nind);
@@ -250,6 +249,113 @@ void calc_pw_as_dist2(void *order)
 	delete p;
 	return;
 
+}
+void calc_weighted_asd(void *order){
+	work_order_t *p = (work_order_t *)order;
+	short **data = p->stru_data->data;
+	int size = p->stru_data->nind;
+	int numThreads = p->threads;
+
+	Bar *pbar = p->bar;
+	int step = size / pbar->totalTicks;
+	if (step == 0) step = 1;
+
+	map<short,double> *freq;
+	freq = new map<short,double>[p->last_index - p->first_index];
+	int *n;
+	n = new int[p->last_index - p->first_index];
+	for (int j = 0; j < 2*size; j++){
+		for (int l = p->first_index; l < p->last_index; l++){
+			if(j == 0){
+				n[l] = 0;
+			}
+
+			if(data[j][l] >= 0){
+				if(freq[l].count(data[j][l]) > 0){
+					freq[l][data[j][l]]++;
+				}
+				else{
+					freq[l][data[j][l]] = 1;
+				}
+				n[l]++;
+			}
+
+			if(j == 2*size-1){
+				for(map<short,double>::iterator it = freq[l].begin(); it != freq[l].end(); ++it){
+					freq[l][it->first] /= double(n[l]);
+					//cerr << it->first << ": " << freq[l][it->first] << " ";
+				}
+				//cerr << endl;
+			}
+		}
+
+	}
+
+	delete [] n;
+
+	short A, B, C, D;
+
+	double ps;
+	double *row = NULL;
+	int *num_loci = NULL;
+
+	for (int j = 0; j < size; j++)
+	{
+		if (j % step == 0) advanceBar(*pbar, double(step));
+
+		row = new double[size - j];
+		num_loci = new int[size - j];
+		
+		for (int k = j+1; k < size; k++)
+		{
+			row[k - j] = 0;
+			num_loci[k - j] = 0;
+
+			for (int l = p->first_index; l < p->last_index; l++)
+			{
+				A = data[2 * j][l];
+				B = data[2 * j + 1][l];
+				C = data[2 * k][l];
+				D = data[2 * k + 1][l];
+				if (A < 0 || C < 0 || B < 0 || D < 0){
+					num_loci[k - j]--;
+				}
+				else{
+					double fA, fB;
+					fA = freq[l][A];
+					fB = freq[l][B];
+					//ps = proportion_shared(A, B);
+					ps = proportion_shared_weighted(A, B, C, D, fA, fB);
+					row[k - j] += ps;
+				}
+			}
+		}
+
+		pthread_mutex_lock(&mutex_dist_mat);
+		for (int m = j; m < size; m++)  DIST_MAT[j][m] += double(row[m - j]);
+		pthread_mutex_unlock(&mutex_dist_mat);
+
+		pthread_mutex_lock(&mutex_loci_mat);
+		for (int m = j; m < size; m++)  NUM_LOCI[j][m] += num_loci[m - j];
+		pthread_mutex_unlock(&mutex_loci_mat);
+
+		delete [] num_loci;
+		delete [] row;
+	}
+
+	delete [] freq;
+	delete p;
+	return;
+}
+
+double proportion_shared_weighted(short A, short B, short C, short D, double fA, double fB){
+	double Iac, Iad, Ibc, Ibd;
+	Iac = (A == C) ? 1.0 : 0.0;
+	Iad = (A == D) ? 1.0 : 0.0;
+	Ibc = (B == C) ? 1.0 : 0.0;
+	Ibd = (B == D) ? 1.0 : 0.0;
+
+	return 0.25*((1.0-fA)*(Iac+Iad)+(1.0-fB)*(Ibc+Ibd));
 }
 
 void calc_grm(void *order)

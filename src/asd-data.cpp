@@ -222,12 +222,12 @@ bool init_storage(int nind, bool CALC_ALL_IBS) {
 	return true;
 }
 
-bool finalize_calculations(int nind, int ncols, bool CALC_ALL_IBS, bool GRM) {
+bool finalize_calculations(int nind, int ncols, bool CALC_ALL_IBS, bool GRM, bool ASD, bool WEIGHTED_ASD) {
 	for (int i = 0; i < nind; i++)
 	{
 		for (int j = i; j < nind; j++)
 		{
-			if (i == j && !GRM)
+			if (i == j && ASD)
 			{
 				DIST_MAT[i][j] = ncols + NUM_LOCI[i][j];
 				//NUM_LOCI[i][j] = ncols+NUM_LOCI[i][j];
@@ -340,14 +340,41 @@ void write_ibs_matrices(string outfile, int nind, int ncols, string *ind_names, 
 	return;
 }
 
-void write_dist_matrix(string outfile, int nind, int ncols, string *ind_names, bool PRINT_PARTIAL, bool PRINT_LOG, bool PRINT_LONG, bool GRM) {
+void write_dist_matrix(string outfile, int nind, int ncols, string *ind_names, bool PRINT_PARTIAL, bool PRINT_LOG, bool PRINT_LONG, bool GRM, bool ASD, bool WEIGHTED_ASD) {
 	ofstream out;
-	string type = (GRM ? "grm" : "dist");
+	string type;
+
+	if(GRM){
+		type = "grm";
+	}
+	else if (ASD){
+		type = "dist";
+	}
+	else if (WEIGHTED_ASD){
+		type = "wsim";
+	}
+
 	if (!PRINT_PARTIAL) {
-		outfile += (GRM ? ".grm" : ".asd.dist");
+		if(GRM){
+			outfile += ".grm";
+		}
+		else if (ASD){
+			outfile += ".asd.dist";
+		}
+		else if (WEIGHTED_ASD){
+			outfile += ".wsim";
+		}
 	}
 	else {
-		outfile += (GRM ? ".grm.partial" : ".asd.partial");
+		if(GRM){
+			outfile += ".grm.partial";
+		}
+		else if (ASD){
+			outfile += ".asd.dist.partial";
+		}
+		else if (WEIGHTED_ASD){
+			outfile += ".wsim.partial";
+		}
 	}
 
 	out.open(outfile.c_str());
@@ -379,41 +406,46 @@ void write_dist_matrix(string outfile, int nind, int ncols, string *ind_names, b
 		for (int i = 0; i < nind; i++){
 			out << ind_names[i] << " ";
 			for (int j = 0; j < nind ; j++){
-				if (PRINT_LOG){
+				if (!PRINT_PARTIAL && PRINT_LOG && ASD){
 					out << 0 - log(double(DIST_MAT[i][j]) /
 					               (double(ncols) + double(NUM_LOCI[i][j])))
 					    << " ";
 				}
-				else if (!PRINT_PARTIAL && !GRM){
+				else if (!PRINT_PARTIAL && ASD){
 					out << 1 - (double(DIST_MAT[i][j]) /
 					            (double(ncols) + double(NUM_LOCI[i][j])))
 					    << " ";
 				}
-				else if (!PRINT_PARTIAL && GRM){
-					out << (double(DIST_MAT[i][j]) /
-					            (double(ncols) + double(NUM_LOCI[i][j])))
-					    << " ";
+				else if (!PRINT_PARTIAL && (GRM || WEIGHTED_ASD)){
+					if(i == j && WEIGHTED_ASD){
+						out << 1 << " ";
+					}
+					else{
+						out << (double(DIST_MAT[i][j]) /
+						            (double(ncols) + double(NUM_LOCI[i][j])))
+						    << " ";
+					}
 				}
 				else out << DIST_MAT[i][j] << " ";
 			}
 			out << endl;
 		}
 	}
-	else {
+	else if (PRINT_LONG) {
 		for (int i = 0; i < nind; i++) {
-			for (int j = i; j < nind ; j++) {
+			for (int j = i+1; j < nind ; j++) {
 				out << ind_names[i] << " " << ind_names[j] << " ";
-				if (PRINT_LOG) {
+				if (PRINT_LOG && ASD) {
 					out << 0 - log(double(DIST_MAT[i][j]) /
 					               (double(ncols) + double(NUM_LOCI[i][j])))
 					    << endl;
 				}
-				else if(GRM){
+				else if(GRM || WEIGHTED_ASD){
 					out << (double(DIST_MAT[i][j]) /
 					            (double(ncols) + double(NUM_LOCI[i][j])))
 					    << endl;
 				}
-				else {
+				else if (ASD){
 					out << 1 - (double(DIST_MAT[i][j]) /
 					            (double(ncols) + double(NUM_LOCI[i][j])))
 					    << endl;
