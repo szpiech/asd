@@ -14,7 +14,15 @@ or
 
 optional flags --partial, --log, --ibs-all, --out, --missing-stru, --missing-tped, --biallelic, --combine, --long, --long-ibs, --grm, --weighted
 
-asd v1.1.0
+CHANGE LOG
+----------
+
+18 FEB 2020 - Release of v1.1.0a fixes a bug when reading VCF without --multiallelic set.
+
+14 FEB 2020 - Release of v1.1.0 includes support for VCF files and computing the weighted allele similarity score from Greenbaum et al. 2019 Genome Research 29:2020-2033.
+
+
+asd v1.1.0a
 ----------Command Line Arguments----------
 
 --combine <string1> ... <stringN>: Combine several files	
