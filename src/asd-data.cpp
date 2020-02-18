@@ -1934,7 +1934,7 @@ structure_data *readData_vcf(string vcf_filename, int &nrow, int &nloci, double 
 
 			if (gt.compare("./.") == 0 || gt.compare(".|.") == 0 || gt.compare(".") == 0) {
 				data->data[currInd][i] = -9;
-				i++;
+				currInd++;
 				continue;
 			}
 			else {
@@ -2138,21 +2138,21 @@ structure_data *readData_vcf(string vcf_filename, int &nrow, int &nloci) {
 	for (int i = 0; i < numComments; i++) getline(fin, line);
 	
 	string gt, a1, a2;
-	int i = 0;
+	//int i = 0;
 	for (int locus = 0; locus < nloci; locus++){
 		getline(fin, line);
 
 		ss.clear();
 		ss.str(line);
 		for (int field = 0; field < 9; field++) ss >> gt;
-		int currInd = 0;
+		//int currInd = 0;
 		for (int ind = 0; ind < nrow; ind++) {
 			ss >> gt;
-			data->ind_names[currInd] = names[ind];
+			data->ind_names[ind] = names[ind];
 
 			if (gt.compare("./.") == 0 || gt.compare(".|.") == 0 || gt.compare(".") == 0) {
-				data->data[currInd][i] = -9;
-				i++;
+				data->data[ind][locus] = -9;
+				//i++;
 				continue;
 			}
 			else {
@@ -2164,10 +2164,10 @@ structure_data *readData_vcf(string vcf_filename, int &nrow, int &nloci) {
 					throw - 1;
 				}
 			}
-			data->data[currInd][i] = atoi(a1.c_str()) + atoi(a2.c_str());
-			currInd++;
+			data->data[ind][locus] = atoi(a1.c_str()) + atoi(a2.c_str());
+			//currInd++;
 		}
-		i++;
+		//i++;
 	}
 
 	//nloci = actualLoci;
