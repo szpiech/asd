@@ -1,3 +1,5 @@
+**Be aware that VCF files must contain GTs only and no other INFO for each sample and variant site otherwise GTs will be read incorrectly. This is a bug that will be fixed eventually. You can ensure proper loading of your vcf file by running: bcftools annotate -x FMT in.vcf -Ov -o out.vcf until this is fixed.
+
 asd is a multi-threaded program to quickly compute pairwise allele sharing distances, GRMs, or frequency weighted allele similarities between diploid individuals with an arbitrary number of alleles per locus (GRMs biallelic only).  asd reads TPED/TFAM, STRU, and VCF formatted files and will load gzipped files without first requiring decompression. If your data are not biallelic, you must use the --multiallelic flag. This flag is not compatible with --grm and is automatically set when using --weighted.
 
 usage
