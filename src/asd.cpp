@@ -84,7 +84,7 @@ int main(int argc, char *argv[])
         LOG.err("ERROR: Must choose only one --grm/--weighted.");
         return -1;
     }
-    bool ASD;
+    bool ASD = false;
     if(!GRM && !WEIGHTED_ASD){
         ASD = true;
     }

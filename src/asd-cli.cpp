@@ -1,6 +1,6 @@
 #include "asd-cli.h"
 
-const string VERSION = "1.1.0a";
+const string VERSION = "1.1.0b";
 
 const string ARG_CALC_IBS = "--ibs";
 const bool DEFAULT_CALC_IBS = false;
