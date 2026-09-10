@@ -48,37 +48,42 @@ void relabel_haplotypes(HaplotypeEncoder_t* encoder) {
     Haplotype newLabel = 0;
 
     // For each of the samples ...
+    //  NOTE: .left and .right are collapsed to MISSING independently by add_locus(), so
+    //  each must be tested on its own. The old loop did `if (genotypes[i].left == MISSING)
+    //  continue;`, which left the right haplotype of a half-missing genotype carrying its
+    //  pre-relabel encoding while every other sample was renumbered -- making subsequent
+    //  haplotype-identity comparisons against that sample meaningless.
     for (int i = 0; i < encoder -> numSamples; i++) {
-        // If the sample has missing genotypes, we skip relabeling.
-        if (encoder -> genotypes[i].left == MISSING)
-            continue;
-        
         // Label left haplotype.
-        k = kh_get(haplotype, encoder -> labelMap, encoder -> genotypes[i].left);
-        // If the left haplotype encoding has never been encountered before ...
-        if (k == kh_end(encoder -> labelMap)) {
-            // Insert encoding and generate label for the haplotype.
-            k = kh_put(haplotype, encoder -> labelMap, encoder -> genotypes[i].left, &ret);
-            kh_value(encoder -> labelMap, k) = newLabel++;
+        if (encoder -> genotypes[i].left != MISSING) {
+            k = kh_get(haplotype, encoder -> labelMap, encoder -> genotypes[i].left);
+            // If the left haplotype encoding has never been encountered before ...
+            if (k == kh_end(encoder -> labelMap)) {
+                // Insert encoding and generate label for the haplotype.
+                k = kh_put(haplotype, encoder -> labelMap, encoder -> genotypes[i].left, &ret);
+                kh_value(encoder -> labelMap, k) = newLabel++;
+            }
+            // If the encoding has been used before in a previous relabeling but needs a new label ...
+            if (kh_value(encoder -> labelMap, k) == MISSING) {
+                // Create new label.
+                kh_value(encoder -> labelMap, k) = newLabel++;
+            }
+            // Get label from hash table and relabel left haplotype.
+            encoder -> genotypes[i].left = kh_value(encoder -> labelMap, k);
         }
-        // If the encoding has been used before in a previous relabeling but needs a new label ...
-        if (kh_value(encoder -> labelMap, k) == MISSING) {
-            // Create new label.
-            kh_value(encoder -> labelMap, k) = newLabel++;
-        }
-        // Get label from hash table and relabel left haplotype.
-        encoder -> genotypes[i].left = kh_value(encoder -> labelMap, kh_get(haplotype, encoder -> labelMap, encoder -> genotypes[i].left));
 
         // Do the same for the right haplotype as the left.
-        k = kh_get(haplotype, encoder -> labelMap, encoder -> genotypes[i].right);
-        if (k == kh_end(encoder -> labelMap)) {
-            k = kh_put(haplotype, encoder -> labelMap, encoder -> genotypes[i].right, &ret);
-            kh_value(encoder -> labelMap, k) = newLabel++;
+        if (encoder -> genotypes[i].right != MISSING) {
+            k = kh_get(haplotype, encoder -> labelMap, encoder -> genotypes[i].right);
+            if (k == kh_end(encoder -> labelMap)) {
+                k = kh_put(haplotype, encoder -> labelMap, encoder -> genotypes[i].right, &ret);
+                kh_value(encoder -> labelMap, k) = newLabel++;
+            }
+            if (kh_value(encoder -> labelMap, k) == MISSING) {
+                kh_value(encoder -> labelMap, k) = newLabel++;
+            }
+            encoder -> genotypes[i].right = kh_value(encoder -> labelMap, k);
         }
-        if (kh_value(encoder -> labelMap, k) == MISSING) {
-            kh_value(encoder -> labelMap, k) = newLabel++;
-        }
-        encoder -> genotypes[i].right = kh_value(encoder -> labelMap, kh_get(haplotype, encoder -> labelMap, encoder -> genotypes[i].right));
     }
 
     // The number of leaves in the tree is the same as the number of new labels (unique haplotypes).

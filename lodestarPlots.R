@@ -138,7 +138,9 @@ axis <- function(JSON, popsFile, i) {
         colnames(data) <- c("CHR", "BP", "COMP");
         g <- ggplot(data, aes(x = BP, y = COMP)) +
             geom_point( aes(color=as.factor(CHR)), alpha=0.8, size=1.3) +
-            scale_color_manual(values = rep(c("red", "blue"), 22 )) +
+            # Alternate two colours over however many chromosomes are present, rather than
+        #  a hard-coded 44.
+        scale_color_manual(values = rep(c("red", "blue"), length.out = length(unique(don$CHR)) )) +
             labs(x = "Chromosome", y = paste("Axis ", i)) +
             theme_bw() +
             theme( 
@@ -163,8 +165,13 @@ var <- function(JSON) {
         SNP = "."
     );
     colnames(data) <- c("CHR", "BP", "V", "SNP");
+    # NOTE: this was as.numeric(gsub("chr", "", CHR)), which turns any non-numeric
+    #  chromosome name -- scaffolds, X, Y, and Drosophila-style 2L/3R -- into NA, and
+    #  those blocks then vanish from the plot without a warning. Map names to positions
+    #  in order of first appearance instead, and keep the name for the axis labels.
     data <- data %>%
-        mutate(CHR = as.numeric(gsub("chr", "", CHR)));
+        mutate(CHRNAME = as.character(CHR),
+               CHR = match(CHRNAME, unique(CHRNAME)));
     # https://r-graph-gallery.com/101_Manhattan_plot.html
     don <- data %>% 
         group_by(CHR) %>% 
@@ -176,17 +183,19 @@ var <- function(JSON) {
         mutate( BPcum=BP+tot);
     axisdf = don %>%
         group_by(CHR) %>%
-        summarize(center=( max(BPcum) + min(BPcum) ) / 2 );
+        summarize(center=( max(BPcum) + min(BPcum) ) / 2, CHRNAME=first(CHRNAME) );
     if (length(unique(data$CHR)) > 1) {
         geopoint = geom_point( aes(color=as.factor(CHR)), alpha=0.8, size=1.3);
-        xlab = scale_x_continuous("Chromosome", label = axisdf$CHR, breaks= axisdf$center);
+        xlab = scale_x_continuous("Chromosome", label = axisdf$CHRNAME, breaks= axisdf$center);
     } else {
         geopoint = geom_point();
         xlab = scale_x_continuous("Chromosome Position");
     }
     plot <- ggplot(don, aes(x=BPcum, y=V)) +
         geom_point( aes(color=as.factor(CHR)), alpha=0.8, size=1.3) +
-        scale_color_manual(values = rep(c("red", "blue"), 22 )) +
+        # Alternate two colours over however many chromosomes are present, rather than
+        #  a hard-coded 44.
+        scale_color_manual(values = rep(c("red", "blue"), length.out = length(unique(don$CHR)) )) +
         scale_y_continuous("Proportion of Variance", expand = c(0, 0), limits = c(0, 1) ) + 
         xlab + geopoint +
         theme_bw() +
@@ -196,7 +205,7 @@ var <- function(JSON) {
             panel.border = element_blank(),
             panel.grid.major.x = element_blank(),
             panel.grid.minor.x = element_blank()
-        ) + ggtitle("Varaince Captured");
+        ) + ggtitle("Variance Captured");
     ggsave(filename, plot, width = 10, height = 6, dpi = 300);
 }
 
@@ -211,8 +220,13 @@ pvals <- function(JSON) {
         SNP = "."
     );
     colnames(data) <- c("CHR", "BP", "P", "SNP");
+    # NOTE: this was as.numeric(gsub("chr", "", CHR)), which turns any non-numeric
+    #  chromosome name -- scaffolds, X, Y, and Drosophila-style 2L/3R -- into NA, and
+    #  those blocks then vanish from the plot without a warning. Map names to positions
+    #  in order of first appearance instead, and keep the name for the axis labels.
     data <- data %>%
-        mutate(CHR = as.numeric(gsub("chr", "", CHR)));
+        mutate(CHRNAME = as.character(CHR),
+               CHR = match(CHRNAME, unique(CHRNAME)));
     # https://r-graph-gallery.com/101_Manhattan_plot.html
     don <- data %>% 
         group_by(CHR) %>% 
@@ -224,17 +238,19 @@ pvals <- function(JSON) {
         mutate( BPcum=BP+tot);
     axisdf = don %>%
         group_by(CHR) %>%
-        summarize(center=( max(BPcum) + min(BPcum) ) / 2 );
+        summarize(center=( max(BPcum) + min(BPcum) ) / 2, CHRNAME=first(CHRNAME) );
     if (length(unique(data$CHR)) > 1) {
         geopoint = geom_point( aes(color=as.factor(CHR)), alpha=0.8, size=1.3);
-        xlab = scale_x_continuous("Chromosome", label = axisdf$CHR, breaks= axisdf$center);
+        xlab = scale_x_continuous("Chromosome", label = axisdf$CHRNAME, breaks= axisdf$center);
     } else {
         geopoint = geom_point();
         xlab = scale_x_continuous("Chromosome Position");
     }
     plot <- ggplot(don, aes(x=BPcum, y=P)) +
         geom_point( aes(color=as.factor(CHR)), alpha=0.8, size=1.3) +
-        scale_color_manual(values = rep(c("red", "blue"), 22 )) +
+        # Alternate two colours over however many chromosomes are present, rather than
+        #  a hard-coded 44.
+        scale_color_manual(values = rep(c("red", "blue"), length.out = length(unique(don$CHR)) )) +
         scale_y_continuous("-log(p)", expand = c(0, 0)) + 
         xlab + geopoint +
         theme_bw() +
@@ -259,8 +275,13 @@ tvals <- function(JSON) {
         SNP = "."
     );
     colnames(data) <- c("CHR", "BP", "t", "SNP");
+    # NOTE: this was as.numeric(gsub("chr", "", CHR)), which turns any non-numeric
+    #  chromosome name -- scaffolds, X, Y, and Drosophila-style 2L/3R -- into NA, and
+    #  those blocks then vanish from the plot without a warning. Map names to positions
+    #  in order of first appearance instead, and keep the name for the axis labels.
     data <- data %>%
-        mutate(CHR = as.numeric(gsub("chr", "", CHR)));
+        mutate(CHRNAME = as.character(CHR),
+               CHR = match(CHRNAME, unique(CHRNAME)));
     # https://r-graph-gallery.com/101_Manhattan_plot.html
     don <- data %>% 
         group_by(CHR) %>% 
@@ -272,17 +293,19 @@ tvals <- function(JSON) {
         mutate( BPcum=BP+tot);
     axisdf = don %>%
         group_by(CHR) %>%
-        summarize(center=( max(BPcum) + min(BPcum) ) / 2 );
+        summarize(center=( max(BPcum) + min(BPcum) ) / 2, CHRNAME=first(CHRNAME) );
     if (length(unique(data$CHR)) > 1) {
         geopoint = geom_point( aes(color=as.factor(CHR)), alpha=0.8, size=1.3);
-        xlab = scale_x_continuous("Chromosome", label = axisdf$CHR, breaks= axisdf$center);
+        xlab = scale_x_continuous("Chromosome", label = axisdf$CHRNAME, breaks= axisdf$center);
     } else {
         geopoint = geom_point();
         xlab = scale_x_continuous("Chromosome Position");
     }
     plot <- ggplot(don, aes(x=BPcum, y=t)) +
         geom_point( aes(color=as.factor(CHR)), alpha=0.8, size=1.3) +
-        scale_color_manual(values = rep(c("red", "blue"), 22 )) +
+        # Alternate two colours over however many chromosomes are present, rather than
+        #  a hard-coded 44.
+        scale_color_manual(values = rep(c("red", "blue"), length.out = length(unique(don$CHR)) )) +
         scale_y_continuous("Procrustes t", expand = c(0, 0), limits = c(0, 1) ) + 
         xlab + geopoint +
         theme_bw() +
@@ -324,7 +347,12 @@ mds <- function(JSON, popsFile, w, i, j) {
 #   No error checking.
 cmd <- function(cmd, blocksFile, popsFile, args) {
     JSON = fromJSON(blocksFile);
-    JSON$Blocks = JSON$Blocks[JSON$Blocks["ProcrustesStatistic"] != -1 & JSON$Blocks["Chromosome"] != "GLOBAL",]
+    # Blocks whose cMDS did not converge now carry null (read as NA) rather than the -1
+    #  sentinel, and dropped blocks are no longer emitted at all. Filter on NA, and keep
+    #  the -1 test so a JSON file written by v1.0 still loads.
+    JSON$Blocks = JSON$Blocks[!is.na(JSON$Blocks["ProcrustesStatistic"]) &
+                              JSON$Blocks["ProcrustesStatistic"] != -1 &
+                              JSON$Blocks["Chromosome"] != "GLOBAL",]
     switch(cmd,
         mds={
             mds(JSON, popsFile, args[1], args[2], args[3]);

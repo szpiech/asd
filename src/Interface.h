@@ -41,9 +41,17 @@ typedef struct {
     // For bootstrap.
     int numReps;
     int sampleSize;
+    // Base RNG seed for the bootstrap. Thread i draws from seed + i, so a given
+    //  (seed, thread count) is exactly reproducible.
+    unsigned long seed;
+    // Suppress per-block and per-replicate progress lines on stderr.
+    bool quiet;
     // The full command.
     char* cmd;
 } LodestarConfig_t;
+
+// The version, defined once so the help menu, the TSV header, and the JSON agree.
+#define LODESTAR_VERSION "1.0.1"
 
 // Parse commandline options and return LODESTAR configuration.
 // Accepts:

@@ -43,8 +43,13 @@ typedef struct {
     // Missing genotype threshold.
     double afMissing;
     // An array to hold the number of each allele at a locus.
-    //  Used in maf calculation.
+    //  Used in maf calculation. Has MAX_NUM_ALLELES + 1 slots, since a missing
+    //  genotype is encoded as allele index numAlleles.
     int* alleleCounts;
+
+    // One-shot flags so a malformed input warns once rather than once per record.
+    bool warnedFormat;
+    bool warnedExtraColumns;
 
     // For convenience, we implement a priming read/peak operation.
     //  This allows us to easily test if the next record belongs to a different chromosome.

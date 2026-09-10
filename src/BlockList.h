@@ -11,10 +11,10 @@
 
 // Our structure that tracks the counts of loci
 //  with 0, 1, and 2 alleles IBS between samples.
+//  c[n] is the number of loci at which the pair shared n alleles, so the count can be
+//  indexed directly by the result of num_shared_alleles() (see LODESTAR.h).
 typedef struct {
-    unsigned int ibs0;
-    unsigned int ibs1;
-    unsigned int ibs2;
+    unsigned int c[3];
 } IBS_t;
 
 // A node in the BlockList.
@@ -54,6 +54,10 @@ typedef struct BlockList {
     double procrustesT;
     double pvalue;
     double* samplingDistribution;
+    // The number of bootstrap replicates that actually completed (an MDS that failed to
+    //  converge is not counted). This is what the p-value denominators use, and it is
+    //  echoed into the output so a reader can tell a short bootstrap from a full one.
+    int numReps;
 
     // Global attributes.
     int numSamples;
@@ -62,6 +66,15 @@ typedef struct BlockList {
     int numLoci;
     Block_t* head;
     Block_t* tail;
+
+    // Indexable views over the list, built once by finalize_block_list().
+    //  blocks holds every block in blockNum order; kept holds only the blocks that
+    //  were not dropped. The bootstrap samples uniformly from kept in O(1), which
+    //  replaces an O(numBlocks) linked-list walk per draw (and a rejection loop that
+    //  could run off the end of the list).
+    Block_t** blocks;
+    Block_t** kept;
+    int numKept;
 } BlockList_t;
 
 // Creates a list of blocks.
@@ -84,6 +97,14 @@ Block_t* init_block(char* chrom, int startCoordinate, int numSamples);
 //  Block_t* block -> Adds the block to the end of the list.
 // Returns: void.
 void append_block(BlockList_t* blockList, Block_t* block);
+
+// Sorts the list into blockNum order and builds the blocks/kept index arrays.
+//  Must be called after all blocks have been appended and before the Procrustes
+//  and bootstrap passes.
+// Accepts:
+//  BlockList_t* blockList -> The list to finalize.
+// Returns: int, 0 on success, -1 if allocation failed.
+int finalize_block_list(BlockList_t* blockList);
 
 // Frees the memory occupied by the block list.
 // Accepts:

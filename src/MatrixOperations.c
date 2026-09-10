@@ -14,9 +14,18 @@
 #include <math.h>
 
 double** init_matrix(int n, int k) {
-    double** X = calloc(n, sizeof(double));
-    for (int i = 0; i < n; i++)
+    // NOTE: the row-pointer array must be sized with sizeof(double*), not sizeof(double).
+    //  These are equal on LP64 but not on ILP32, where the old code under-allocated.
+    double** X = calloc(n, sizeof(double*));
+    if (X == NULL)
+        return NULL;
+    for (int i = 0; i < n; i++) {
         X[i] = calloc(k, sizeof(double));
+        if (X[i] == NULL) {
+            destroy_matrix(X, i);
+            return NULL;
+        }
+    }
     return X;
 }
 
@@ -195,8 +204,10 @@ double compute_classical_mds(RealSymEigen_t* eigen, double* packedDistanceMatrix
     for(int i = 0; i < N; i++) {
         for(int j = i + 1; j < N; j++) {
             // Distance matrices cannot contain negative values.
+            //  Return the -1 failure code that every caller tests for; the old
+            //  code returned 1, which callers read as "succeeded, 100% variance".
             if (packedDistanceMatrix[INDEX(i, j, N)] < 0)
-                return 1;
+                return -1;
             // Square each element.
             packedDistanceMatrix[INDEX(i, j, N)] *= packedDistanceMatrix[INDEX(i, j, N)];
             // Calculate row sums and grand mean.
@@ -424,6 +435,11 @@ double procrustes_statistic(double** Xc, double* x0, double** Yc, double* y0, Re
     }
 
     double ss = trY + rho * rho * trX - 2 * rho * trLambda;
+
+    // ss is a residual sum of squares in [0, 1] for centred/normalised point sets,
+    //  but rounding can push it a hair outside. Clamp so we never return NaN.
+    if (ss < 0) ss = 0;
+    if (ss > 1) ss = 1;
 
     return sqrt(1 - ss);
 

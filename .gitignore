@@ -5,3 +5,10 @@
 # but do track lib.a
 !lib.a
 *~
+
+# macOS finder metadata
+.DS_Store
+
+# test scratch
+bin/
+obj_asan/

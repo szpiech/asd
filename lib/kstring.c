@@ -13,7 +13,11 @@ int bwa_kvsprintf(kstring_t *s, const char *fmt, va_list ap)
 	va_list ap2;
 	int l;
 	va_copy(ap2, ap);
-	l = vsnprintf(s->s + s->l, s->m - s->l, fmt, ap);
+	/* Local patch to the vendored klib source: on the first call s->s is NULL and
+	   s->l is 0, and `s->s + s->l` is undefined behaviour even at zero offset
+	   (UndefinedBehaviorSanitizer: applying zero offset to null pointer). Passing NULL
+	   with a size of 0 is what vsnprintf() expects for a length query. */
+	l = vsnprintf(s->s == NULL ? NULL : s->s + s->l, s->m - s->l, fmt, ap);
 	if (l + 1 > s->m - s->l) {
 		s->m = s->l + l + 2;
 		kroundup32(s->m);

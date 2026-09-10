@@ -5,6 +5,7 @@
 // Purpose: Parse a VCF file for samples' genotypes at each record.
 
 #include "VCFLocusParser.h"
+#include <stdio.h>
 
 // I am not in love with how I wrote this, but it is sufficient for now.
 bool seek(VCFLocusParser_t* parser) {
@@ -44,8 +45,28 @@ bool seek(VCFLocusParser_t* parser) {
                     for (int j = prevIndex + 1; parser -> buffer -> s[j] != '\t'; j++)
                         if (parser -> buffer -> s[j] == ',')
                             numAlleles++;
+                    // A record with more alleles than we can count is skipped below; bail out
+                    //  of the genotype scan now so we never index alleleCounts out of range.
+                    if (numAlleles > MAX_NUM_ALLELES)
+                        break;
+                } else if (numTabs == 8) {
+                    // The ninth field is FORMAT. parse_locus() reads the first subfield as GT,
+                    //  so warn once if this record does not put GT first.
+                    if (!parser -> warnedFormat && strncmp(parser -> buffer -> s + prevIndex + 1, "GT", 2) != 0) {
+                        fprintf(stderr, "Warning: FORMAT does not begin with GT at %s:%u. Genotypes may be parsed incorrectly.\n", parser -> nextChrom, parser -> nextCoord);
+                        parser -> warnedFormat = true;
+                    }
                 } else if (numTabs > 8) {
                     // The ninth field and on holds the genotypes of the samples.
+                    //  Guard against a record with more genotype columns than the header
+                    //  declared, which would otherwise write past the end of nextLocus.
+                    if (numTabs - 9 >= parser -> numSamples) {
+                        if (!parser -> warnedExtraColumns) {
+                            fprintf(stderr, "Warning: record at %s:%u has more genotype columns than the header declares (%d). Extra columns ignored.\n", parser -> nextChrom, parser -> nextCoord, parser -> numSamples);
+                            parser -> warnedExtraColumns = true;
+                        }
+                        break;
+                    }
                     l = parse_locus(parser -> buffer -> s + prevIndex + 1, numAlleles);
                     // Increment each allele's count.
                     parser -> alleleCounts[LEFT_ALLELE(l)]++;
@@ -60,7 +81,14 @@ bool seek(VCFLocusParser_t* parser) {
 
         // Set the number of alleles at the locus.
         parser -> nextNumAlleles = numAlleles;
-        
+
+        // A record with more alleles than MAX_NUM_ALLELES is dropped. Test it here,
+        //  before the frequency loop, which would otherwise index alleleCounts with
+        //  numAlleles > MAX_NUM_ALLELES. (The genotype scan above bailed out before
+        //  touching any counts, so there is nothing to reset.)
+        if (numAlleles > MAX_NUM_ALLELES)
+            continue;
+
         // Iterate through the allele counts to get the MAF and the most frequent allele.
         maf = 1;
         afMax = 0;
@@ -78,9 +106,7 @@ bool seek(VCFLocusParser_t* parser) {
         parser -> alleleCounts[numAlleles] = 0;
 
         // Test that all thresholds are met.
-        if (numAlleles > MAX_NUM_ALLELES)
-            continue;
-        else if (parser -> dropMonomorphicSites && afMax == 1)
+        if (parser -> dropMonomorphicSites && afMax == 1)
             continue;
         else if (numAlleles == 2 && maf < parser -> maf)
             continue;
@@ -100,10 +126,17 @@ VCFLocusParser_t* init_vcf_locus_parser(char* fileName, double maf, double afMis
     // Open the GZ file.
     gzFile file = gzopen(fileName, "r");
 
+    // If the file could not be opened at all, gzerror() would itself dereference NULL.
+    if (file == NULL) {
+        fprintf(stderr, "Could not open %s.\n", fileName);
+        return NULL;
+    }
+
     // If file does not exist or is not compressed using gzip, return NULL.
     int errnum;
     gzerror(file, &errnum);
     if (errnum != Z_OK) {
+        gzclose(file);
         return NULL;
     }
     
@@ -114,9 +147,20 @@ VCFLocusParser_t* init_vcf_locus_parser(char* fileName, double maf, double afMis
     kstring_t* buffer = calloc(1, sizeof(kstring_t));
     
     // Parse all the meta data in the VCF file.
+    //  Stop at EOF as well as at #CHROM: the old loop spun forever (and dereferenced a
+    //  NULL buffer -> s on the first pass) on any input without a #CHROM line.
     int dret;
+    int headerLen;
     do {
-        ks_getuntil(stream, '\n', buffer, &dret);
+        headerLen = ks_getuntil(stream, '\n', buffer, &dret);
+        if (headerLen < 0 || buffer -> s == NULL) {
+            fprintf(stderr, "%s has no #CHROM header line. Is it a VCF file?\n", fileName);
+            if (buffer -> s != NULL) free(buffer -> s);
+            free(buffer);
+            ks_destroy(stream);
+            gzclose(file);
+            return NULL;
+        }
     } while (strncmp(buffer -> s, "#C", 2) != 0);
     
     // Count the number of samples in the header of the VCF file.
@@ -138,6 +182,7 @@ VCFLocusParser_t* init_vcf_locus_parser(char* fileName, double maf, double afMis
         sampleNames[i] = strdup(tok);
         tok = strtok(NULL, "\t");
     }
+    free(header);
     
     // Allocate our structure and the memory for its fields.
     VCFLocusParser_t* parser = (VCFLocusParser_t*) calloc(1, sizeof(VCFLocusParser_t));
@@ -154,9 +199,11 @@ VCFLocusParser_t* init_vcf_locus_parser(char* fileName, double maf, double afMis
     parser -> maf = maf;
     parser -> afMissing = afMissing;
     parser -> dropMonomorphicSites = dropMonomorphicSites;
-    parser -> alleleCounts = calloc(MAX_NUM_ALLELES, sizeof(int));
-    for (int i = 0; i < MAX_NUM_ALLELES; i++)
-        parser -> alleleCounts[i] = 0;
+    // MAX_NUM_ALLELES + 1 slots: a missing genotype is encoded as allele index
+    //  numAlleles, which can be MAX_NUM_ALLELES, so the old array was one short.
+    parser -> alleleCounts = calloc(MAX_NUM_ALLELES + 1, sizeof(int));
+    parser -> warnedFormat = false;
+    parser -> warnedExtraColumns = false;
 
     // Prime the first record.
     seek(parser);
