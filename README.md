@@ -23,11 +23,23 @@ Requires a C compiler, `gfortran` (the vendored netlib LAPACK is Fortran), and z
 
 ```
 make                 # builds bin/lodestar with -O2
+make -j8             # parallel build
 make test            # runs the regression suite (needs only sh, awk, gzip)
 make asan            # builds bin/lodestar_asan with -fsanitize=address,undefined
 make install         # installs to $(PREFIX)/bin, PREFIX defaults to /usr/local
 make CC=clang        # override the compiler as usual
 ```
+
+If your C compiler does not know where `libgfortran` lives — clang with a Homebrew
+`gfortran` is the usual case — put its directory on the link line:
+
+```
+make CC=clang LIBDIRS="-L$(brew --prefix gcc)/lib/gcc/current"
+```
+
+`.github/workflows/build-and-test.yml` builds and tests on ubuntu and macos with both gcc
+and clang, runs the suite under AddressSanitizer and UndefinedBehaviorSanitizer, and
+drives `lodestarPlots.R` over a real run's JSON.
 
 ## Worked example
 

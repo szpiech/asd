@@ -160,23 +160,43 @@ strictly more work than v1.0's (it actually pools blocks) and is still ~5x faste
     deterministic LCG so they are byte-identical on every platform. Run against v1.0 the
     suite reports 16 failures.
 34. **`make asan`** builds with the address and undefined-behaviour sanitizers;
-    **`make install`** installs to `$(PREFIX)/bin`.
-35. `make clean` no longer fails on an already-clean tree; `lib/kstring.o` is built to its
+    **`make install`** installs to `$(PREFIX)/bin`. `asan` instruments only the C sources
+    (`OPT`), not the vendored Fortran (`FOPT`) — sanitizing 99 LAPACK files finds nothing
+    and requires the C and Fortran compilers to ship the same sanitizer runtime, which is
+    not true of a mixed clang/gfortran toolchain.
+35. **`.github/workflows/build-and-test.yml`** — three jobs on push and pull request:
+    a four-leg build matrix (ubuntu/macos x gcc/clang) that builds, runs the suite, and
+    asserts that a second `make` is a no-op and that `make clean` is idempotent; a
+    sanitizer job that runs the whole suite against `bin/lodestar_asan`; and a job that
+    builds the tool, runs it, and drives `lodestarPlots.R` over the resulting JSON. The
+    matrix is the point: it is what catches a build that only works on the author's
+    machine.
+36. **The build is now correctly incremental and `-j` safe.** `lib/lapack` and `lib/gsl`
+    were `.PHONY` targets, and `src/LODESTAR.o` and `src/MatrixOperations.o` depended on
+    them, so every invocation of `make` recompiled and relinked the entire project even on
+    an unchanged tree. They are pattern rules over real object files now: a second `make`
+    is a no-op, touching one header recompiles four objects instead of all of them, and
+    `make -j8` works — from clean, 13.8 s at `-j1` against 3.4 s at `-j8` on an 8-core
+    machine.
+37. `make clean` no longer fails on an already-clean tree; `lib/kstring.o` is built to its
     own target name rather than `src/kstring.o` (so it stopped rebuilding every time, and
-    is now named explicitly on the link line); the LAPACK rule compiles each source to an
-    explicit output instead of building in the repository root and `mv`-ing, which raced
-    under `make -j`; object rules list their own sources and headers as prerequisites, so
-    editing a `.c` or `.h` actually triggers a rebuild.
-36. One local patch to vendored `lib/kstring.c`: `s->s + s->l` is undefined behaviour when
+    is now named explicitly on the link line rather than being picked up by a `src/*.o`
+    glob); object rules list their own sources and headers as prerequisites, so editing a
+    `.c` or `.h` actually triggers a rebuild.
+38. **`LIBDIRS`** is a new link-line hook for `-L` and `-rpath` paths. Without it the build
+    could not be completed with clang on a machine whose libgfortran is outside the
+    compiler's default search path — `ld: library 'gfortran' not found`. The CI workflow
+    derives it from `$(FC) -print-file-name=libgfortran.{so,dylib}`.
+39. One local patch to vendored `lib/kstring.c`: `s->s + s->l` is undefined behaviour when
     `s->s` is `NULL`, even at zero offset.
 
 ### R plotting script
 
-37. Blocks whose statistics are `NA` are filtered (the `-1` test is kept so v1.0 JSON still
+40. Blocks whose statistics are `NA` are filtered (the `-1` test is kept so v1.0 JSON still
     loads).
-38. `as.numeric(gsub("chr", "", CHR))` turned every non-numeric chromosome name —
+41. `as.numeric(gsub("chr", "", CHR))` turned every non-numeric chromosome name —
     scaffolds, `X`, `Y`, Drosophila-style `2L`/`3R` — into `NA`, and those blocks vanished
     from the plot with no warning. Names are now mapped to positions in order of first
     appearance and the original name is used for the axis label.
-39. The two-colour chromosome palette is sized to the data rather than hard-coded to 44.
-40. `Varaince` corrected in a plot title.
+42. The two-colour chromosome palette is sized to the data rather than hard-coded to 44.
+43. `Varaince` corrected in a plot title.

@@ -1,0 +1,207 @@
+name: build and test
+
+# The build matrix exists because of a specific class of bug. Until v1.0.1 the makefile
+# used `CC ?= gcc` / `FC ?= gfortran`, which never override GNU make's built-in
+# `CC = cc` / `FC = f77`, so a bare `make` invoked a Fortran driver that does not exist on
+# most systems and silently compiled the C with whatever `cc` happened to be. That is
+# invisible on a machine where the author's toolchain is first on PATH and fatal
+# everywhere else. Building with both gcc and clang, on Linux and macOS, is what catches it.
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: ${{ matrix.os }} / ${{ matrix.toolchain }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        toolchain: [gcc, clang]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install gfortran and zlib (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gfortran zlib1g-dev
+
+      - name: Install gfortran (macOS)
+        if: runner.os == 'macOS'
+        run: brew install gcc
+
+      - name: Resolve the toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # On macOS, `gcc` on PATH is Apple clang. The gcc leg of the matrix therefore
+          # has to name Homebrew's versioned binary explicitly, or it would silently test
+          # clang twice and prove nothing.
+          if [ "${{ matrix.toolchain }}" = "gcc" ] && [ "${{ runner.os }}" = "macOS" ]; then
+            CC=$(ls "$(brew --prefix gcc)"/bin/gcc-[0-9]* | sort -V | tail -1)
+          else
+            CC=${{ matrix.toolchain }}
+          fi
+
+          FC=$(command -v gfortran || true)
+          if [ -z "$FC" ]; then
+            FC=$(ls "$(brew --prefix gcc)"/bin/gfortran-[0-9]* 2>/dev/null | sort -V | tail -1)
+          fi
+          if [ -z "$FC" ]; then
+            echo "No Fortran compiler found; the vendored netlib LAPACK cannot be built." >&2
+            exit 1
+          fi
+
+          # Ask the Fortran compiler where its own runtime lives and put that on the link
+          # line. Needed whenever the C compiler does not already know: clang has no
+          # reason to know about a Homebrew gcc's lib directory, so without this the
+          # macOS/clang leg fails at `ld: library 'gfortran' not found`. The rpath is for
+          # the same reason at run time.
+          case "${{ runner.os }}" in
+            macOS) GFNAME=libgfortran.dylib ;;
+            *)     GFNAME=libgfortran.so ;;
+          esac
+          GFLIB=$("$FC" -print-file-name=$GFNAME)
+          LIBDIRS=""
+          if [ -f "$GFLIB" ]; then
+            GFDIR=$(cd "$(dirname "$GFLIB")" && pwd)
+            LIBDIRS="-L$GFDIR -Wl,-rpath,$GFDIR"
+          fi
+
+          echo "LODESTAR_CC=$CC"           >> "$GITHUB_ENV"
+          echo "LODESTAR_FC=$FC"           >> "$GITHUB_ENV"
+          echo "LODESTAR_LIBDIRS=$LIBDIRS" >> "$GITHUB_ENV"
+
+          echo "CC      = $CC  ($($CC --version 2>&1 | head -1))"
+          echo "FC      = $FC  ($($FC --version 2>&1 | head -1))"
+          echo "LIBDIRS = $LIBDIRS"
+
+      # The makefile assigns CC and FC with `=`, so they must be overridden on the make
+      # command line -- an environment variable would not take effect.
+      - name: Build
+        run: make CC="$LODESTAR_CC" FC="$LODESTAR_FC" LIBDIRS="$LODESTAR_LIBDIRS"
+
+      - name: Binary runs
+        run: |
+          ./bin/lodestar --version
+          ./bin/lodestar --help > /dev/null
+
+      - name: Regression tests
+        run: make CC="$LODESTAR_CC" FC="$LODESTAR_FC" LIBDIRS="$LODESTAR_LIBDIRS" test
+
+      # Guards the stale-prerequisite bug fixed in v1.0.1: the object rules used to name
+      # only other objects, never their own sources, and lib/kstring.o was written to a
+      # path that did not match its target -- so `make` rebuilt and relinked every time
+      # and could link stale objects after an edit.
+      - name: Second make is a no-op
+        shell: bash
+        run: |
+          out=$(make CC="$LODESTAR_CC" FC="$LODESTAR_FC" LIBDIRS="$LODESTAR_LIBDIRS")
+          echo "$out"
+          echo "$out" | grep -q "up to date" || {
+            echo "::error::make rebuilt something on an unchanged tree" >&2
+            exit 1
+          }
+
+      # `make clean` used to exit 1 on an already-clean tree, which breaks any packaging
+      # script that cleans defensively.
+      - name: make clean is idempotent
+        run: |
+          make clean
+          make clean
+
+  sanitizers:
+    name: sanitizers (ubuntu / gcc)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install gfortran and zlib
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gfortran zlib1g-dev
+
+      - name: Build with ASan and UBSan
+        run: make asan
+
+      # Reuses the regression suite rather than a separate scenario list: the suite
+      # already covers a plain run, a multithreaded bootstrap, dropped blocks,
+      # all-blocks-dropped, and four malformed -y inputs, and a sanitizer abort surfaces
+      # as a nonzero exit and therefore a failed test.
+      - name: Run the suite under the sanitizers
+        env:
+          # detect_leaks is deliberately off. The v1.0.1 pass fixed the leaks it found
+          # (the VCF header copy, the cmd string, a stray calloc in procrustes()) but did
+          # not audit every allocation, so LeakSanitizer would fail this job on known
+          # unaudited allocations rather than on new regressions. Turn it on once the
+          # remaining allocations have been traced -- that is a real follow-up, not a
+          # permanent exemption.
+          ASAN_OPTIONS: detect_leaks=0
+          UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
+        run: LODESTAR=./bin/lodestar_asan ./tests/run_tests.sh
+
+  rscript:
+    name: R plotting script (ubuntu)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install gfortran and zlib
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gfortran zlib1g-dev
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          use-public-rspm: true
+
+      - name: Install R dependencies
+        run: Rscript -e 'install.packages(c("ggplot2", "dplyr", "jsonlite"))'
+
+      - name: Build LODESTAR
+        run: make
+
+      - name: Syntax check
+        run: Rscript -e 'invisible(parse("lodestarPlots.R")); cat("parsed\n")'
+
+      # The script reads the tool's own JSON, so the two have to be tested together --
+      # a dropped trailing block used to make the JSON unparseable by jsonlite, and the
+      # -1 "not computed" sentinel became NA in v1.0.1, which the script had to be
+      # taught to filter.
+      - name: Plot from a real run
+        shell: bash
+        run: |
+          set -euo pipefail
+          awk -v n=20 -v seed=7 -v layout=sparse -v nblocks=6 -v dense=400 -v sparse=5 \
+              -f tests/make_fixtures.awk | gzip -c > ci.vcf.gz
+          ./bin/lodestar -q -b 1000000 -r 100 -d 100 --seed 1 -o ci ci.vcf.gz
+          Rscript -e 'jsonlite::fromJSON("ci.json"); cat("json parsed by jsonlite\n")'
+          for sub in var pvals tvals; do
+            Rscript lodestarPlots.R "$sub" ci.json
+          done
+          for png in variance_captured.png pvalues.png procrustes_statistic.png; do
+            test -s "$png" || { echo "::error::$png was not produced" >&2; exit 1; }
+            echo "  $png $(stat -c%s "$png") bytes"
+          done
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: plots
+          path: '*.png'
+          if-no-files-found: error
